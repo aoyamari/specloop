@@ -17,6 +17,15 @@ The demo app is **Patungan**, a bill splitter for friends: add members, add expe
 
 **Live app:** https://aoyamari.github.io/specloop/
 
+## Proof: Kane caught a real bug
+
+[PR #1](https://github.com/aoyamari/specloop/pull/1) is a harmless-looking refactor of `balances()`. In the refactor, every expense is split across the whole group instead of only the people ticked under "Split among".
+
+1. 🔴 **Kane failed R5** in a real browser: *"Final verification failed: the Balances list says Budi gets back Rp 25.000, Andi owes Rp 25.000 and Citra is settled"*. The PR got a verdict comment with a link to the evidence pack (video + step trace).
+2. The agent read the failure, fixed `app/logic.js` (commit message cites the Kane failure), and pushed.
+3. 🟡 Kane re-ran: R5 was green. R7 flagged a spec ambiguity: "enter Amount 0 and click Add expense" read as a step that must succeed. The spec wording was fixed, not the test weakened.
+4. 🟢 **8/8 requirements verified**, merged, and `main` is green.
+
 ## How it works
 
 ```
