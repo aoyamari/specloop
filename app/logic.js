@@ -50,6 +50,7 @@ export function balances(members, expenses) {
   const bal = Object.fromEntries(members.map((m) => [m, 0]));
   for (const e of expenses) {
     bal[e.payer] += e.amount;
+    // Only the people ticked under "Split among" share this expense (spec R5).
     const s = shares(e.amount, e.splitAmong);
     for (const [p, v] of Object.entries(s)) bal[p] -= v;
   }
