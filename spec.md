@@ -11,8 +11,8 @@ written in plain English. The last bullet of each requirement must verify someth
 
 ## R2: Reject duplicate member names
 - Add the members "Andi" and "Budi".
-- Type "andi" into the Member name field and click Add member.
-- Verify an error saying Andi is already in the group is shown, and the Members list still contains exactly two names.
+- Try to add "andi" again (lowercase) by typing it into the Member name field and clicking Add member. The app is expected to refuse it.
+- Verify an error saying Andi is already in the group is shown, and the Members list still contains exactly two names: Andi and Budi.
 
 ## R3: Add an expense and show the total
 - Add the members "Andi", "Budi" and "Citra".

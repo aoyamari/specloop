@@ -17,7 +17,7 @@ Open http://localhost:4173, click "Start over", and verify the Members list says
 Add the members "Andi" and "Budi".
 
 ## Step 2
-Type "andi" into the Member name field and click Add member.
+Try to add "andi" again (lowercase) by typing it into the Member name field and clicking Add member. The app is expected to refuse it.
 
 ## Step 3
-Verify an error saying Andi is already in the group is shown, and the Members list still contains exactly two names.
+Verify an error saying Andi is already in the group is shown, and the Members list still contains exactly two names: Andi and Budi.

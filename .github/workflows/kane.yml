@@ -47,7 +47,7 @@ jobs:
         uses: LambdaTest/kane-cli/integrations/github-action/kane-cli-browser-run@main
         with:
           test-files: "tests/**/*_test.md"
-          parallel: "4"
+          parallel: "2"   # 4 workers crashed Chrome on the 2-core runner (SIGBUS)
           username: ${{ secrets.LT_USERNAME }}
           access-key: ${{ secrets.LT_ACCESS_KEY }}
 
