@@ -18,6 +18,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit tests
+        run: npm test
+
+  # Independent of the unit tests on purpose: Kane judges the real app in a real
+  # browser on every change, whatever the unit tests say.
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -27,9 +39,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-
-      - name: Unit tests
-        run: npm test
 
       - name: Spec -> Kane tests (fail if tests/ is stale)
         run: |
