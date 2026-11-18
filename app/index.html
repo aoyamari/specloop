@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patungan · split bills with friends</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Patungan</h1>
+    <p class="tagline">Split bills with friends. Settle up in as few transfers as possible.</p>
+  </header>
+
+  <main>
+    <section class="card" aria-labelledby="members-title">
+      <h2 id="members-title">Members</h2>
+      <form id="member-form" autocomplete="off">
+        <label for="member-name">Member name</label>
+        <div class="row">
+          <input id="member-name" name="member-name" placeholder="e.g. Andi">
+          <button type="submit">Add member</button>
+        </div>
+        <p class="error" id="member-error" role="alert"></p>
+      </form>
+      <ul id="member-list" aria-label="Members list"></ul>
+    </section>
+
+    <section class="card" aria-labelledby="expense-title">
+      <h2 id="expense-title">Add expense</h2>
+      <form id="expense-form" autocomplete="off">
+        <label for="expense-desc">Description</label>
+        <input id="expense-desc" placeholder="e.g. Dinner">
+        <label for="expense-amount">Amount (Rp)</label>
+        <input id="expense-amount" inputmode="numeric" placeholder="e.g. 90000">
+        <label for="expense-payer">Paid by</label>
+        <select id="expense-payer"></select>
+        <fieldset>
+          <legend>Split among</legend>
+          <div id="split-options"></div>
+        </fieldset>
+        <button type="submit">Add expense</button>
+        <p class="error" id="expense-error" role="alert"></p>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="expenses-title">
+      <h2 id="expenses-title">Expenses</h2>
+      <ul id="expense-list" aria-label="Expenses list"></ul>
+      <p class="total">Total spent: <strong id="total">Rp 0</strong></p>
+    </section>
+
+    <section class="card" aria-labelledby="balances-title">
+      <h2 id="balances-title">Balances</h2>
+      <ul id="balance-list" aria-label="Balances list"></ul>
+    </section>
+
+    <section class="card" aria-labelledby="settle-title">
+      <h2 id="settle-title">Settle up</h2>
+      <ul id="settle-list" aria-label="Settle up list"></ul>
+    </section>
+
+    <button id="reset" class="secondary" type="button">Start over</button>
+  </main>
+
+  <footer>Verified with Kane CLI via <a href="https://github.com/aoyamari/specloop">SpecLoop</a></footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+name: Kane verify
+
+# Every push and PR: serve the app, run every spec requirement through Kane CLI in a
+# real headless Chrome, post the verdict + evidence on the PR, and publish a
+# requirement-by-requirement report plus a fix prompt for the coding agent.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: kane-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Spec -> Kane tests (fail if tests/ is stale)
+        run: |
+          node specloop/cli.mjs gen
+          git diff --exit-code -- tests/ || (echo "::error::tests/ is out of date with spec.md — run npm run gen and commit" && exit 1)
+
+      - name: Serve the app
+        run: |
+          nohup node specloop/cli.mjs serve > serve.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:4173 >/dev/null && exit 0; sleep 1; done
+          cat serve.log; exit 1
+
+      - name: Kane CLI verifies every requirement
+        id: kane
+        uses: LambdaTest/kane-cli/integrations/github-action/kane-cli-browser-run@main
+        with:
+          test-files: "tests/**/*_test.md"
+          parallel: "4"
+          username: ${{ secrets.LT_USERNAME }}
+          access-key: ${{ secrets.LT_ACCESS_KEY }}
+
+      - name: SpecLoop report
+        if: always()
+        run: |
+          node specloop/cli.mjs report \
+            --stream kane-out/stream.ndjson \
+            --results "${{ steps.kane.outputs.results-file }}" \
+            --evidence "${{ steps.kane.outputs.evidence-url }}"
+
+      - name: Upload SpecLoop report + fix prompt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: specloop-report-${{ github.run_id }}
+          path: .specloop/
+          if-no-files-found: ignore

@@ -1,0 +1,18 @@
+{
+  "name": "specloop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "spec.md is the test suite, Kane CLI is the judge, your coding agent is the fixer. Demo app: Patungan, a bill splitter.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "bin": { "specloop": "specloop/cli.mjs" },
+  "scripts": {
+    "start": "node specloop/cli.mjs serve",
+    "gen": "node specloop/cli.mjs gen",
+    "verify": "node specloop/cli.mjs verify",
+    "loop": "node specloop/cli.mjs loop",
+    "watch": "node specloop/cli.mjs loop --watch",
+    "test": "node --test test/*.test.mjs"
+  }
+}
