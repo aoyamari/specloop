@@ -16,6 +16,10 @@ on:
         description: "Mutant ids to run, comma separated (empty = all)"
         required: false
         default: ""
+      previous_run:
+        description: "Reuse the mutation report from this earlier run id instead of running the mutants again"
+        required: false
+        default: ""
       strengthen:
         description: "Let Claude Code add requirements for surviving mutants"
         type: boolean
@@ -49,15 +53,26 @@ jobs:
       - name: Install Kane CLI
         run: npm install -g @testmuai/kane-cli && kane-cli --version
 
+      - name: Reuse an earlier mutation report
+        if: inputs.previous_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          pattern: specloop-mutation-*
+          merge-multiple: true
+          path: .specloop
+          run-id: ${{ inputs.previous_run }}
+          github-token: ${{ github.token }}
+
       - name: Mutation run (Kane CLI against every mutant)
         id: mutate
+        if: inputs.previous_run == ''
         continue-on-error: true
         run: |
           if [ -n "${{ inputs.only }}" ]; then node specloop/cli.mjs mutate --only "${{ inputs.only }}"; else node specloop/cli.mjs mutate; fi
 
       - name: Build the spec-gap prompt
         id: prompt
-        if: steps.mutate.outcome == 'failure' && inputs.strengthen
+        if: (steps.mutate.outcome == 'failure' || inputs.previous_run != '') && inputs.strengthen
         run: |
           test -s .specloop/spec-gap-prompt.md || { echo "::notice::No surviving mutants to write requirements for."; exit 1; }
           {
@@ -78,6 +93,8 @@ jobs:
       - name: Only spec.md may change
         if: steps.prompt.outcome == 'success'
         run: |
+          # tests/ is generated from spec.md, so anything the agent wrote there is discarded and rebuilt.
+          git checkout -q -- tests/ && git clean -qfd -- tests/
           changed=$(git status --porcelain | awk '{print $2}' | grep -v '^\.specloop/' || true)
           echo "changed: $changed"
           for f in $changed; do [ "$f" = "spec.md" ] || { echo "::error::agent touched $f"; exit 1; }; done
@@ -99,11 +116,12 @@ jobs:
           git config user.name "specloop-bot"
           git config user.email "specloop-bot@users.noreply.github.com"
           git checkout -b "$branch"
-          git add spec.md tests/
+          git add spec.md tests/*_test.md
           git commit -m "[specloop-spec] Close spec gaps found by mutation testing" -m "Claude Code wrote the new requirements; Kane CLI proved each passes on the real app and fails on its surviving mutant."
           git push origin "$branch"
           {
             echo "Mutation testing found regressions that the whole spec let through. Claude Code wrote new requirements for them, and Kane CLI proved each one passes on the real app and catches its mutant."
+            if [ -n "${{ inputs.previous_run }}" ]; then echo; echo "Mutation run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ inputs.previous_run }}"; fi
             echo
             cat .specloop/MUTATION.md
             echo

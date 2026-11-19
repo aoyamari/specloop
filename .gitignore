@@ -3,3 +3,4 @@ node_modules/
 .testmuai/
 *.log
 kane-out/
+tests/output-*/
