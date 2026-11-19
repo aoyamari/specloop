@@ -1,0 +1,161 @@
+name: Kane auto-fix
+
+# Closes the loop in CI with no human in the middle:
+# Kane verify fails on a PR -> Claude Code reads SpecLoop's fix prompt and edits app/ ->
+# SpecLoop re-runs Kane on the whole spec -> green: push the fix to the PR and comment.
+# At most 2 fix rounds per run and 2 auto-fix commits per branch, then it hands back to a human.
+#
+# Needs repository secrets: LT_USERNAME, LT_ACCESS_KEY, CLAUDE_CODE_OAUTH_TOKEN
+# (Pro/Max users: run `claude setup-token`). Same-repo PRs only, never forks.
+
+on:
+  workflow_run:
+    workflows: ["Kane verify"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  id-token: write
+
+concurrency:
+  group: kane-fix-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      LT_USERNAME: ${{ secrets.LT_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+
+      - name: Find the PR and the fix budget
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')
+          FIXES=$(git log origin/main..HEAD --oneline --grep='\[specloop-fix\]' | wc -l)
+          echo "number=$PR" >> "$GITHUB_OUTPUT"
+          echo "fixes=$FIXES" >> "$GITHUB_OUTPUT"
+          echo "PR #$PR, earlier auto-fix commits: $FIXES"
+
+      - name: Stop after 2 auto-fix commits
+        if: steps.pr.outputs.number == '' || steps.pr.outputs.fixes >= 2
+        run: echo "::notice::No open PR or fix budget used up; leaving this one to a human." && exit 0
+
+      - name: Get SpecLoop's fix prompt from the failed run
+        if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        uses: actions/download-artifact@v4
+        with:
+          pattern: specloop-report-*
+          merge-multiple: true
+          path: .specloop
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - uses: actions/setup-node@v4
+        if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        with:
+          node-version: "22"
+
+      - name: Install Kane CLI
+        if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        run: npm install -g @testmuai/kane-cli && kane-cli --version
+
+      - name: Build the agent prompt
+        if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        id: prompt
+        run: |
+          {
+            echo 'text<<SPECLOOP_EOF'
+            cat .specloop/fix-prompt.md
+            echo
+            echo 'Rules: edit only files under app/. Do not edit spec.md or tests/. Do not commit or push; SpecLoop will run Kane CLI and push your fix if every requirement passes. Run npm test before you finish.'
+            echo 'SPECLOOP_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: "Round 1: Claude Code fixes the app"
+        if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: ${{ steps.prompt.outputs.text }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          claude_args: "--allowedTools 'Edit,MultiEdit,Read,Glob,Grep,LS,Bash(npm test)'"
+
+      - name: "Round 1: Kane CLI verifies the whole spec"
+        if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        id: verify1
+        continue-on-error: true
+        run: node specloop/cli.mjs verify
+
+      - name: "Round 2: prompt from the new Kane failures"
+        if: steps.verify1.outcome == 'failure'
+        id: prompt2
+        run: |
+          {
+            echo 'text<<SPECLOOP_EOF'
+            cat .specloop/fix-prompt.md
+            echo
+            echo 'Your previous fix did not make every requirement pass. Same rules: edit only app/, do not edit spec.md or tests/, do not commit. Run npm test before you finish.'
+            echo 'SPECLOOP_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: "Round 2: Claude Code fixes the app"
+        if: steps.verify1.outcome == 'failure'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: ${{ steps.prompt2.outputs.text }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          claude_args: "--allowedTools 'Edit,MultiEdit,Read,Glob,Grep,LS,Bash(npm test)'"
+
+      - name: "Round 2: Kane CLI verifies the whole spec"
+        if: steps.verify1.outcome == 'failure'
+        id: verify2
+        continue-on-error: true
+        run: node specloop/cli.mjs verify
+
+      - name: Push the fix only if Kane is green
+        if: steps.verify1.outcome == 'success' || steps.verify2.outcome == 'success'
+        run: |
+          if git diff --quiet -- app/; then echo "No app changes to push"; exit 0; fi
+          git config user.name "specloop-bot"
+          git config user.email "specloop-bot@users.noreply.github.com"
+          git add app/
+          git commit -m "[specloop-fix] Fix failing requirements, verified by Kane CLI" -m "Claude Code fixed app/ from SpecLoop's fix prompt; Kane CLI then verified every requirement in spec.md."
+          git push origin "HEAD:$BRANCH"
+
+      - name: Comment the result on the PR
+        if: always() && steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GREEN: ${{ steps.verify1.outcome == 'success' || steps.verify2.outcome == 'success' }}
+        run: |
+          {
+            if [ "$GREEN" = "true" ]; then
+              echo "### 🤖 SpecLoop auto-fix: Claude Code fixed it, Kane CLI verified it"
+              echo "The fix is pushed to this branch as a \`[specloop-fix]\` commit."
+            else
+              echo "### 🤖 SpecLoop auto-fix: still red after 2 rounds"
+              echo "Handing back to a human. Nothing was pushed."
+            fi
+            echo
+            cat .specloop/REPORT.md 2>/dev/null || echo "(no report)"
+            echo
+            echo "[Auto-fix run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } > comment.md
+          gh pr comment "${{ steps.pr.outputs.number }}" --body-file comment.md

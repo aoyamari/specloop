@@ -12,6 +12,7 @@ You write requirements in plain English in `spec.md`. SpecLoop turns each one in
 | **Claude Code** (Stop hook) | Claude can't finish its turn while Kane is red. The failures go straight back into the chat, and Claude keeps fixing (up to 3 rounds). |
 | **Any agent / file watcher** | `npm run loop -- --agent "<cmd>" --watch` re-verifies on every save and pipes the failures into Codex, Gemini CLI, Hermes or anything that takes a prompt on stdin. |
 | **GitHub Actions** | Every push and PR runs the whole spec through Kane in headless Chrome. The PR gets a verdict comment with video evidence, and the run uploads a requirement-by-requirement report plus the fix prompt. |
+| **Auto-fix in CI** | When Kane fails on a PR, `kane-fix.yml` hands SpecLoop's fix prompt to Claude Code (official `claude-code-action`), re-runs Kane on the whole spec, and pushes a `[specloop-fix]` commit only if every requirement is green. Two rounds per run, two auto-fix commits per branch, then it hands back to a human. |
 
 The demo app is **Patungan**, a bill splitter for friends: add members, add expenses, see who owes whom, and settle up in the fewest transfers.
 
@@ -64,6 +65,8 @@ For other agents, use `--agent` with any shell command. By default the prompt ar
 ## CI
 
 `.github/workflows/kane.yml` runs on every push and PR. It runs the unit tests, checks that `tests/` matches the spec, serves the app, and runs the official `kane-cli-browser-run` action over `tests/**/*_test.md`. It then publishes the SpecLoop report to the job summary and uploads `.specloop/` (report + fix prompt) as an artifact. Repository secrets needed: `LT_USERNAME`, `LT_ACCESS_KEY`.
+
+`.github/workflows/kane-fix.yml` closes the loop with no human in the middle: on a failed Kane run for a same-repo PR it downloads the fix prompt, lets Claude Code edit only `app/`, re-runs `specloop verify`, and pushes and comments only when Kane is green. Extra secret: `CLAUDE_CODE_OAUTH_TOKEN` (run `claude setup-token`).
 
 `.github/workflows/pages.yml` deploys `app/` to GitHub Pages.
 
