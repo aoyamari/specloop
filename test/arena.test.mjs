@@ -30,3 +30,8 @@ test("arenaMarkdown marks spec edits as disqualified even when green", () => {
   assert.match(md, /\| x \| ⛔ disqualified/);
   assert.match(md, /\| y \| 🟢 10\/10 \| 1 \| 2 \| 50 s/);
 });
+
+test("hermes preset reads the prompt from a file, so no shell quoting is involved", () => {
+  const [h] = parseAgents("hermes");
+  assert.equal(h.cmd, "hermes chat -Q --query-file {prompt_file}");
+});

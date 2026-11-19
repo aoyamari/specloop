@@ -81,7 +81,7 @@ A green suite only proves the spec passed. It does not prove the spec would catc
 
 `specloop arena --mutant M2 --agents claude,gemini,codex` plants one bug from `mutants.json` in a separate copy of the repo for each agent, then runs SpecLoop's normal loop there: Kane verifies the whole spec, the failures go to the agent as a fix prompt, and Kane verifies again (up to `--max` rounds). Kane is the only judge. An agent that edits `spec.md` or `tests/` is disqualified even when Kane is green. The result is `.specloop/ARENA.md`: Kane verdict, fix rounds, Kane runs, time, and the lines each agent changed.
 
-Built-in commands: `claude -p`, `gemini --yolo -p`, `codex exec --full-auto`. Any other agent: `--agents "mine=my-agent {prompt_file}"`.
+Built-in commands: `claude -p`, `gemini --yolo -p`, `codex exec --full-auto`, `hermes chat -Q --query-file`. Any other agent: `--agents "mine=my-agent {prompt_file}"`.
 
 **Status:** unit-tested, and dry-run end to end with a stub Kane and three stub agents (a correct fix goes green, an agent that deletes R5 from the spec is disqualified, an agent that does nothing stays red). It has **not** been run with real Gemini CLI and Codex yet: on the demo server both hit free-tier quota limits, so there is no real scoreboard to show.
 

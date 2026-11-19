@@ -18,6 +18,7 @@ export const PRESETS = {
   claude: 'claude -p --permission-mode acceptEdits "$(cat {prompt_file})"',
   gemini: 'gemini --yolo -p "$(cat {prompt_file})"',
   codex: 'codex exec --full-auto --skip-git-repo-check "$(cat {prompt_file})"',
+  hermes: 'hermes chat -Q --query-file {prompt_file}',
 };
 
 export function parseAgents(spec) {
