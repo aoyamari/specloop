@@ -17,6 +17,7 @@ import { generate, parseSpec } from "./spec.mjs";
 import { parseStream, parseResultsTable, summarize, toMarkdown, fixPrompt } from "./report.mjs";
 import { mutate, bisect } from "./lab.mjs";
 import { buildStatus } from "./status.mjs";
+import { arena } from "./arena.mjs";
 
 import { fileURLToPath } from "node:url";
 
@@ -201,16 +202,25 @@ function runAgent(agentCmd, prompt, name = "fix-prompt.md") {
 }
 
 async function loopOnce(agentCmd, max) {
+  const stats = { kaneRuns: 0, agentRuns: 0, green: false };
+  const done = (green) => {
+    stats.green = green;
+    fs.mkdirSync(OUT, { recursive: true });
+    fs.writeFileSync(path.join(OUT, "loop.json"), JSON.stringify(stats));
+    return green;
+  };
   for (let round = 1; round <= max + 1; round += 1) {
     log(`— round ${round}: Kane verify —`);
     const r = await verify();
-    if (r.green) { log(`🟢 all ${r.summary.total} requirements verified`); return true; }
-    if (r.code === 2 && !r.summary?.rows.some((x) => x.res)) return false;
+    stats.kaneRuns += 1;
+    if (r.green) { log(`🟢 all ${r.summary.total} requirements verified`); return done(true); }
+    if (r.code === 2 && !r.summary?.rows.some((x) => x.res)) return done(false);
     if (!agentCmd || round > max) break;
     await runAgent(agentCmd, r.prompt);
+    stats.agentRuns += 1;
   }
   log("🔴 still failing — see .specloop/REPORT.md");
-  return false;
+  return done(false);
 }
 
 async function loop() {
@@ -307,6 +317,7 @@ const HELP = `SpecLoop — spec.md is the test suite, Kane CLI is the judge, you
   node specloop/cli.mjs mutate [--only M7,M8] [--agent "<cmd>"]   does the spec catch real bugs?
   node specloop/cli.mjs mutate --recheck                          after strengthening spec.md
   node specloop/cli.mjs bisect --req R6 --good <sha> [--bad HEAD] [--agent "<cmd>"]
+  node specloop/cli.mjs arena --mutant M2 [--agents claude,gemini,codex] [--max 3]   same bug, several agents, Kane judges
 `;
 
 const main = {
@@ -323,6 +334,7 @@ const main = {
     log(`status page: ${r.passed}/${r.reqs} verified, mutation score ${r.score}`);
   },
   bisect: async () => { process.exitCode = await bisect(lab()); },
+  arena: async () => { process.exitCode = await arena(lab()); },
   help: async () => console.log(HELP),
 }[cmd];
 

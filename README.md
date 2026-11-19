@@ -77,6 +77,12 @@ A green suite only proves the spec passed. It does not prove the spec would catc
 
 **Proof:** [PR #4](https://github.com/aoyamari/specloop/pull/4) is six small "polish" commits. One of them, `7d521e1` "Settle-up: share one sort comparator", also swaps who pays whom. Kane failed R6, and bisect named `7d521e1` as the first bad commit in **3 Kane runs**, with the diff, in the PR comment. Claude Code got that diff, changed one line back (and kept the commit's shared comparator), Kane re-ran the whole spec (**8/8**), and the bot pushed the `[specloop-fix]` commit. No human touched the code.
 
+## Same bug, several agents: `specloop arena`
+
+`specloop arena --mutant M2 --agents claude,gemini,codex` plants one bug from `mutants.json` in a separate copy of the repo for each agent, then runs SpecLoop's normal loop there: Kane verifies the whole spec, the failures go to the agent as a fix prompt, and Kane verifies again (up to `--max` rounds). Kane is the only judge. An agent that edits `spec.md` or `tests/` is disqualified even when Kane is green. The result is `.specloop/ARENA.md`: Kane verdict, fix rounds, Kane runs, time, and the lines each agent changed.
+
+Built-in commands: `claude -p`, `gemini --yolo -p`, `codex exec --full-auto`. Any other agent: `--agents "mine=my-agent {prompt_file}"`.
+
 ## How it works
 
 ```
@@ -131,6 +137,7 @@ specloop/cli.mjs        serve · gen · verify · loop · hook · report
 specloop/spec.mjs       spec parser, linter, test generator
 specloop/report.mjs     Kane NDJSON → requirement report + fix prompt
 specloop/lab.mjs        mutate (mutation testing of the spec) · bisect (Kane as git bisect oracle)
+specloop/arena.mjs      arena (one planted bug, several agents, Kane as the judge)
 mutants.json            plausible regressions used by `specloop mutate`
 .claude/settings.json   Claude Code Stop hook
 ```
