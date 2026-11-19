@@ -5,7 +5,7 @@
 
 **Your spec is the test suite. Kane CLI is the judge. Your coding agent is the fixer.**
 
-You write requirements in plain English in `spec.md`. SpecLoop turns each one into a Kane CLI test. Kane runs them in a real browser, and any requirement that fails goes back to your coding agent as a fix prompt. Kane then runs again, and the loop repeats until every requirement is green. The same loop runs in three places:
+You write requirements in `spec.md` as plain sentences, not test code. SpecLoop turns each one into a Kane CLI test. Kane runs them in a real browser, and any requirement that fails goes back to your coding agent as a fix prompt. Kane then runs again, and the loop repeats until every requirement is green. The same loop runs in three places:
 
 | Where | What happens |
 |---|---|
@@ -43,7 +43,7 @@ A green suite only proves the spec passed. It does not prove the spec would catc
 
 - Kane tries the most likely requirements first. A mutant only counts as **survived** after the **whole** spec has passed against it.
 - The result is a **mutation score**.
-- Each survivor is a gap in the spec. SpecLoop writes `spec-gap-prompt.md`, and the agent (Claude Code in CI via `kane-mutate.yml`) adds plain-English requirements for it.
+- Each survivor is a gap in the spec. SpecLoop writes `spec-gap-prompt.md`, and the agent (Claude Code in CI via `kane-mutate.yml`) adds requirements for it, written as plain sentences.
 - `specloop mutate --recheck` then proves two things with Kane: every new requirement **passes on the real app**, and it **kills its mutant**. Only then does the bot open a PR with the stronger spec.
 
 **Proof:** Kane scored the original 8-requirement spec **6/8** ([run](https://github.com/aoyamari/specloop/actions/runs/44489509625)). Two mutants survived: rounding leftovers dropped (M7) and "Start over" keeping old expenses (M8). In the [strengthening run](https://github.com/aoyamari/specloop/actions/runs/44496536608), Claude Code wrote R9 "Rounding leftovers are not lost" and R10 "Start over clears everything". Kane showed both pass on the real app, R9 kills M7 and R10 kills M8, and the bot opened [PR #5](https://github.com/aoyamari/specloop/pull/5). **Mutation score: 8/8.**

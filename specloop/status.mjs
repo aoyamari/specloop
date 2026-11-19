@@ -101,7 +101,7 @@ a{color:var(--ink);font-weight:600}footer{color:var(--muted);font-size:.9rem;mar
 <div class="stats">
 <div class="stat"><b>${verify ? `${passed}/${reqs.length}` : "—"}</b><span>requirements verified by Kane CLI</span></div>
 <div class="stat"><b>${score}</b><span>${esc(scoreNote)}</span></div>
-<div class="stat"><b>${reqs.length}</b><span>plain-English requirements in spec.md</span></div>
+<div class="stat"><b>${reqs.length}</b><span>requirements in spec.md, written as plain sentences, not test code</span></div>
 </div>
 <section class="card"><h2>Requirements</h2><table><thead><tr><th>Req</th><th>Requirement</th><th>Kane on main</th><th>Catches</th></tr></thead><tbody>
 ${rows}
