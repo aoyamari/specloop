@@ -192,6 +192,17 @@ jobs:
             --results "${{ steps.kane2.outputs.results-file }}" \
             --evidence "${{ steps.kane2.outputs.evidence-url }}"
 
+      - name: Keep the bisect report for the status page
+        if: always() && steps.bisect.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: specloop-bisect-${{ github.run_id }}
+          path: |
+            .specloop/bisect.json
+            .specloop/BISECT.md
+          include-hidden-files: true
+          if-no-files-found: ignore
+
       - name: Say so if the auto-fix could not start
         if: failure() && steps.pr.outputs.number != '' && steps.verify1.outcome != 'success' && steps.verify1.outcome != 'failure'
         env:

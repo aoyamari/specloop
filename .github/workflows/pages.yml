@@ -46,7 +46,11 @@ jobs:
           : > runs.env
           fetch kane.yml specloop-report- verify main
           fetch kane-mutate.yml specloop-mutation- mutation
-          fetch kane-bisect.yml specloop-bisect- bisect
+          # Bisect runs on its own (kane-bisect.yml) and inside the auto-fix (kane-fix.yml):
+          # take the newest run of either that kept a bisect report.
+          for id in $(for w in kane-bisect.yml kane-fix.yml; do gh run list --workflow "$w" --limit 10 --json databaseId,createdAt,status -q '.[]|select(.status=="completed")|[.createdAt,.databaseId]|@tsv'; done | sort -r | cut -f2); do
+            if gh run download "$id" --pattern "specloop-bisect-*" --dir data/bisect 2>/dev/null; then echo "bisect=$id" >> runs.env; break; fi
+          done
           cat runs.env
       - name: Build the site
         run: |
