@@ -57,6 +57,8 @@ npm run watch -- --agent "claude -p --permission-mode acceptEdits"  # same, on e
 
 To use the loop with Claude Code, open this repo in Claude Code and work normally. `.claude/settings.json` already registers the Stop hook. If a turn changed `app/` or `spec.md`, Kane runs when Claude tries to finish, and a red result sends the failures back to Claude.
 
+Environment knobs: `SPECLOOP_ONLY=R4,R5` runs only those requirements (handy for a fast hook), and `SPECLOOP_PARALLEL=2` sets how many Chrome workers Kane uses.
+
 For other agents, use `--agent` with any shell command. By default the prompt arrives on stdin; put `{prompt_file}` in the command to receive a path instead.
 
 ## CI

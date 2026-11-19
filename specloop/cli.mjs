@@ -92,7 +92,7 @@ function gen({ quiet } = {}) {
 
 // ---------- verify ----------
 function kaneArgs(only) {
-  const a = ["testrun", "run", "--tags", "specloop", "--agent", "--headless", "--parallel", String(opt.parallel || 3)];
+  const a = ["testrun", "run", "--tags", "specloop", "--agent", "--headless", "--parallel", String(opt.parallel || process.env.SPECLOOP_PARALLEL || 2)];
   if (only.length) a.push("--match", only.map((id) => `${id.toLowerCase()}-`).join("|"));
   if (process.env.LT_USERNAME && process.env.LT_ACCESS_KEY) {
     a.push("--username", process.env.LT_USERNAME, "--access-key", process.env.LT_ACCESS_KEY);
@@ -155,7 +155,8 @@ function appHash() {
 async function verify() {
   const g = gen({ quiet: true });
   if (!g) return { green: false, code: 2 };
-  const only = opt.only ? String(opt.only).toUpperCase().split(",").map((s) => s.trim()) : [];
+  const onlyRaw = opt.only || process.env.SPECLOOP_ONLY || "";
+  const only = onlyRaw ? String(onlyRaw).toUpperCase().split(",").map((s) => s.trim()).filter(Boolean) : [];
   const reqs = only.length ? g.reqs.filter((r) => only.includes(r.id)) : g.reqs;
   const server = await ensureServer();
   try {
