@@ -130,6 +130,14 @@ jobs:
         continue-on-error: true
         run: node specloop/cli.mjs verify
 
+      - name: Say so if the auto-fix could not start
+        if: failure() && steps.pr.outputs.number != '' && steps.verify1.outcome != 'success' && steps.verify1.outcome != 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ steps.pr.outputs.number }}" --body "### 🤖 SpecLoop auto-fix: could not start
+          A setup step failed before Claude Code ran, so nothing was pushed. [Run log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
       - name: Push the fix only if Kane is green
         if: steps.verify1.outcome == 'success' || steps.verify2.outcome == 'success'
         run: |
@@ -141,7 +149,7 @@ jobs:
           git push origin "HEAD:$BRANCH"
 
       - name: Comment the result on the PR
-        if: always() && steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        if: always() && (steps.verify1.outcome == 'success' || steps.verify1.outcome == 'failure')
         env:
           GH_TOKEN: ${{ github.token }}
           GREEN: ${{ steps.verify1.outcome == 'success' || steps.verify2.outcome == 'success' }}
