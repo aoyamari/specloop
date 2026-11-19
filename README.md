@@ -27,6 +27,14 @@ The demo app is **Patungan**, a bill splitter for friends: add members, add expe
 3. 🟡 Kane re-ran: R5 was green. R7 flagged a spec ambiguity: "enter Amount 0 and click Add expense" read as a step that must succeed. The spec wording was fixed, not the test weakened.
 4. 🟢 **8/8 requirements verified**, merged, and `main` is green.
 
+## Proof: fixed with no human in the loop
+
+[PR #3](https://github.com/aoyamari/specloop/pull/3) "simplifies" `validateMember()` and quietly makes the duplicate-name check case-sensitive.
+
+1. 🔴 Kane CLI fails R2: *"An error saying Andi is already in the group is shown…"* was not true.
+2. 🤖 `kane-fix.yml` hands SpecLoop's fix prompt to Claude Code in GitHub Actions. Claude edits only `app/logic.js`.
+3. 🟢 SpecLoop re-runs Kane on the whole spec in the same job: **8/8**. Only then is the `[specloop-fix]` commit pushed, and the PR gets the report as a comment.
+
 ## How it works
 
 ```
