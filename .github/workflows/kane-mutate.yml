@@ -93,6 +93,8 @@ jobs:
       - name: Only spec.md may change
         if: steps.prompt.outcome == 'success'
         run: |
+          # tests/ is generated from spec.md, so anything the agent wrote there is discarded and rebuilt.
+          git checkout -q -- tests/ && git clean -qfd -- tests/
           changed=$(git status --porcelain | awk '{print $2}' | grep -v '^\.specloop/' || true)
           echo "changed: $changed"
           for f in $changed; do [ "$f" = "spec.md" ] || { echo "::error::agent touched $f"; exit 1; }; done

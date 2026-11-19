@@ -284,11 +284,13 @@ export async function bisect(c) {
   else if ((await probe(bad, "confirm bad")) !== "bad") { c.log(`${reqIds.join(", ")} passes at ${bad.slice(0, 7)}; nothing to bisect`); return finishBisect(c, { reqIds, good, bad, commits, probes, culprit: null }); }
   if (!opt["trust-good"] && (await probe(good, "confirm good")) !== "good") { c.log(`${reqIds.join(", ")} already fails at the good commit ${good.slice(0, 7)}; pick an older one`); return finishBisect(c, { reqIds, good, bad, commits, probes, culprit: null }); }
 
+  let step = 0;
   let lo = -1;                 // index of the last known good (-1 = the good commit)
   let hi = commits.length - 1; // index of the first known bad
   while (hi - lo > 1) {
     const mid = Math.floor((lo + hi) / 2);
-    if ((await probe(commits[mid], `step ${probes.length - 1}`)) === "bad") hi = mid; else lo = mid;
+    step += 1;
+    if ((await probe(commits[mid], `bisect step ${step}`)) === "bad") hi = mid; else lo = mid;
   }
   const culprit = commits[hi];
   const code = await finishBisect(c, { reqIds, good, bad, commits, probes, culprit });

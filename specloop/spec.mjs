@@ -45,7 +45,9 @@ export function testFileName(req) {
   return `${req.id.toLowerCase()}-${slugify(req.title)}_test.md`;
 }
 
-export function renderTest(req, { url }) {
+export function renderTest(req, { url: base }) {
+  // Each requirement gets its own bill (?bill=r8), so tests running in parallel never share storage.
+  const url = `${base.replace(/\/$/, "")}/?bill=${req.id.toLowerCase()}`;
   const steps = [
     // Every test starts from an empty group, whatever an earlier test left in storage.
     `## Start from an empty group\nOpen ${url}, click "Start over", and verify the Members list says No members yet.`,

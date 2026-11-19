@@ -2,7 +2,9 @@ import {
   formatIDR, parseAmount, validateMember, validateExpense, balances, settleUp, total,
 } from "./logic.js";
 
-const KEY = "patungan:v1";
+// One bill per link: ?bill=trip-bali keeps its own members and expenses.
+const BILL = (new URLSearchParams(location.search).get("bill") || "default").replace(/[^\w-]/g, "").slice(0, 40) || "default";
+const KEY = `patungan:v1:${BILL}`;
 const $ = (id) => document.getElementById(id);
 
 function load() {
