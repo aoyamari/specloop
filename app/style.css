@@ -103,7 +103,7 @@ button:active { transform: translateY(1px); }
   cursor: pointer; font-weight: 600;
 }
 .toggles input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
-.toggles label:has(input:checked) { border-color: var(--ink); background: #fff8dc; }
+.toggles label:has(input:checked) { border-color: var(--ink); background: #fff3c4; }
 
 .error { color: var(--sambal); min-height: 1.4em; margin: 8px 0 0; font-size: 0.9rem; font-weight: 600; }
 
