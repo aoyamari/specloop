@@ -65,8 +65,10 @@ export function settleUp(bal) {
     if (v < 0) debtors.push({ name, amt: -v });
     else if (v > 0) creditors.push({ name, amt: v });
   }
-  debtors.sort((a, b) => b.amt - a.amt);
-  creditors.sort((a, b) => b.amt - a.amt);
+  // Largest amounts first, so the biggest transfer is listed at the top.
+  const byAmount = (a, b) => b.amt - a.amt;
+  debtors.sort(byAmount);
+  creditors.sort(byAmount);
   const transfers = [];
   let i = 0;
   let j = 0;
