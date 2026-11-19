@@ -74,7 +74,7 @@ export function settleUp(bal) {
   let j = 0;
   while (i < debtors.length && j < creditors.length) {
     const pay = Math.min(debtors[i].amt, creditors[j].amt);
-    transfers.push({ from: creditors[j].name, to: debtors[i].name, amount: pay });
+    transfers.push({ from: debtors[i].name, to: creditors[j].name, amount: pay });
     debtors[i].amt -= pay;
     creditors[j].amt -= pay;
     if (debtors[i].amt === 0) i += 1;
