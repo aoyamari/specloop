@@ -44,3 +44,13 @@ written in plain English. The last bullet of each requirement must verify someth
 - Add the members "Andi" and "Budi", then add an expense "Coffee", Amount 40000, Paid by Andi, split among both.
 - Reload the page.
 - Verify the Members list still shows Andi and Budi, the Expenses list still shows Coffee for Rp 40.000, and Total spent shows Rp 40.000.
+
+## R9: Rounding leftovers are not lost
+- Add the members "Andi", "Budi" and "Citra".
+- Add an expense with Description "Villa", Amount 100000, Paid by Andi, split among all three.
+- Verify the Balances list says Andi gets back Rp 66.666, Budi owes Rp 33.333 and Citra owes Rp 33.333.
+
+## R10: Start over clears everything
+- Add the members "Andi" and "Budi", then add an expense "Coffee", Amount 40000, Paid by Andi, split among both.
+- Click Start over.
+- Verify the Members list is empty, the Expenses list says No expenses yet, and Total spent shows Rp 0.
