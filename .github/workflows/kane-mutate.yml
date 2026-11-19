@@ -1,0 +1,121 @@
+name: Kane mutate
+
+# Who checks the checker? Inject plausible regressions (mutants.json) into a copy of app/,
+# let Kane CLI run the spec against each one, and score the spec.
+# Survivors are gaps in spec.md: Claude Code writes new plain-English requirements for them,
+# SpecLoop proves each new requirement passes on the real app AND kills its mutant,
+# and only then opens a PR with the stronger spec.
+#
+# Secrets: LT_USERNAME, LT_ACCESS_KEY, CLAUDE_CODE_OAUTH_TOKEN.
+# Repo setting: Actions > General > "Allow GitHub Actions to create and approve pull requests".
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Mutant ids to run, comma separated (empty = all)"
+        required: false
+        default: ""
+      strengthen:
+        description: "Let Claude Code add requirements for surviving mutants"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: kane-mutate
+  cancel-in-progress: false
+
+jobs:
+  mutate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      LT_USERNAME: ${{ secrets.LT_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Kane CLI
+        run: npm install -g @testmuai/kane-cli && kane-cli --version
+
+      - name: Mutation run (Kane CLI against every mutant)
+        id: mutate
+        continue-on-error: true
+        run: |
+          if [ -n "${{ inputs.only }}" ]; then node specloop/cli.mjs mutate --only "${{ inputs.only }}"; else node specloop/cli.mjs mutate; fi
+
+      - name: Build the spec-gap prompt
+        id: prompt
+        if: steps.mutate.outcome == 'failure' && inputs.strengthen
+        run: |
+          test -s .specloop/spec-gap-prompt.md || { echo "::notice::No surviving mutants to write requirements for."; exit 1; }
+          {
+            echo 'text<<SPECLOOP_EOF'
+            cat .specloop/spec-gap-prompt.md
+            echo 'SPECLOOP_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Claude Code strengthens spec.md
+        if: steps.prompt.outcome == 'success'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: ${{ steps.prompt.outputs.text }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          claude_args: "--allowedTools 'Edit,MultiEdit,Read,Glob,Grep,LS'"
+
+      - name: Only spec.md may change
+        if: steps.prompt.outcome == 'success'
+        run: |
+          changed=$(git status --porcelain | awk '{print $2}' | grep -v '^\.specloop/' || true)
+          echo "changed: $changed"
+          for f in $changed; do [ "$f" = "spec.md" ] || { echo "::error::agent touched $f"; exit 1; }; done
+          git diff -- spec.md
+
+      - name: "Recheck: new requirements pass on the real app and kill the survivors"
+        id: recheck
+        if: steps.prompt.outcome == 'success'
+        continue-on-error: true
+        run: node specloop/cli.mjs mutate --recheck
+
+      - name: Open a PR with the stronger spec
+        if: steps.recheck.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node specloop/cli.mjs gen
+          branch="specloop/stronger-spec-${{ github.run_id }}"
+          git config user.name "specloop-bot"
+          git config user.email "specloop-bot@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add spec.md tests/
+          git commit -m "[specloop-spec] Close spec gaps found by mutation testing" -m "Claude Code wrote the new requirements; Kane CLI proved each passes on the real app and fails on its surviving mutant."
+          git push origin "$branch"
+          {
+            echo "Mutation testing found regressions that the whole spec let through. Claude Code wrote new requirements for them, and Kane CLI proved each one passes on the real app and catches its mutant."
+            echo
+            cat .specloop/MUTATION.md
+            echo
+            echo "[Mutation run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } > pr.md
+          gh pr create --base main --head "$branch" --title "Stronger spec: close gaps found by mutation testing" --body-file pr.md
+
+      - name: Upload the mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: specloop-mutation-${{ github.run_id }}
+          path: .specloop/
+          include-hidden-files: true
+          if-no-files-found: ignore

@@ -15,6 +15,7 @@ import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { generate, parseSpec } from "./spec.mjs";
 import { parseStream, parseResultsTable, summarize, toMarkdown, fixPrompt } from "./report.mjs";
+import { mutate, bisect } from "./lab.mjs";
 
 import { fileURLToPath } from "node:url";
 
@@ -48,11 +49,12 @@ const log = (...m) => console.error("[specloop]", ...m);
 // ---------- static server ----------
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };
 
-function serve(port = PORT) {
+function serve(port = PORT, dir = APP) {
+  const root = path.resolve(dir);
   const server = http.createServer((req, res) => {
     const u = decodeURIComponent(new URL(req.url, "http://x").pathname);
-    let file = path.normalize(path.join(APP, u));
-    if (!file.startsWith(APP)) { res.writeHead(403).end(); return; }
+    let file = path.normalize(path.join(root, u));
+    if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
     if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, "index.html");
     if (!fs.existsSync(file)) { res.writeHead(404).end("not found"); return; }
     res.writeHead(200, { "content-type": TYPES[path.extname(file)] || "application/octet-stream", "cache-control": "no-store" });
@@ -182,12 +184,13 @@ async function verify() {
 }
 
 // ---------- agent loop ----------
-function runAgent(agentCmd, prompt) {
-  const file = path.join(OUT, "fix-prompt.md");
+function runAgent(agentCmd, prompt, name = "fix-prompt.md") {
+  fs.mkdirSync(OUT, { recursive: true });
+  const file = path.join(OUT, name);
   fs.writeFileSync(file, prompt);
   const usesFile = agentCmd.includes("{prompt_file}");
   const line = agentCmd.replaceAll("{prompt_file}", JSON.stringify(file));
-  log(`🤖 handing ${prompt.split("\n### ").length - 1} failing requirement(s) to: ${agentCmd}`);
+  log(`🤖 handing ${name} to: ${agentCmd}`);
   return new Promise((resolve) => {
     const child = spawn(line, { shell: true, stdio: [usesFile ? "ignore" : "pipe", "inherit", "inherit"] });
     if (!usesFile) { child.stdin.write(prompt); child.stdin.end(); }
@@ -284,6 +287,11 @@ function report() {
   if (opt.strict) process.exitCode = summary.green ? 0 : 1;
 }
 
+// Shared helpers for the mutation and bisect labs (specloop/lab.mjs).
+function lab() {
+  return { ROOT, OUT, APP, PORT, URL: URL_, opt, log, serve, runKane, parseStream, gen, runAgent };
+}
+
 const HELP = `SpecLoop — spec.md is the test suite, Kane CLI is the judge, your agent is the fixer.
 
   npm start                          serve the app on ${URL_}
@@ -291,6 +299,9 @@ const HELP = `SpecLoop — spec.md is the test suite, Kane CLI is the judge, you
   node specloop/cli.mjs verify       run all requirements through Kane CLI
   node specloop/cli.mjs loop --agent "claude -p" [--max 3] [--watch]
   node specloop/cli.mjs hook         Claude Code Stop hook (see .claude/settings.json)
+  node specloop/cli.mjs mutate [--only M7,M8] [--agent "<cmd>"]   does the spec catch real bugs?
+  node specloop/cli.mjs mutate --recheck                          after strengthening spec.md
+  node specloop/cli.mjs bisect --req R6 --good <sha> [--bad HEAD] [--agent "<cmd>"]
 `;
 
 const main = {
@@ -300,6 +311,8 @@ const main = {
   loop,
   hook: async () => { process.exitCode = await hook(); },
   report: async () => report(),
+  mutate: async () => { process.exitCode = await mutate(lab()); },
+  bisect: async () => { process.exitCode = await bisect(lab()); },
   help: async () => console.log(HELP),
 }[cmd];
 

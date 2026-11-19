@@ -1,0 +1,69 @@
+{
+  "about": "Plausible regressions a coding agent could make. SpecLoop injects each one into a copy of app/ and asks Kane CLI whether the spec catches it. `checks` lists the requirements tried first; a mutant only counts as survived after the whole spec has passed against it.",
+  "mutants": [
+    {
+      "id": "M1",
+      "title": "Duplicate-name check becomes case-sensitive",
+      "file": "app/logic.js",
+      "find": "const existing = members.find((m) => m.toLowerCase() === clean.toLowerCase());",
+      "replace": "const existing = members.find((m) => m === clean);",
+      "checks": ["R2"]
+    },
+    {
+      "id": "M2",
+      "title": "Every expense is split across the whole group",
+      "file": "app/logic.js",
+      "find": "const s = shares(e.amount, e.splitAmong);",
+      "replace": "const s = shares(e.amount, members);",
+      "checks": ["R5"]
+    },
+    {
+      "id": "M3",
+      "title": "Settle-up transfers go the wrong way",
+      "file": "app/logic.js",
+      "find": "transfers.push({ from: debtors[i].name, to: creditors[j].name, amount: pay });",
+      "replace": "transfers.push({ from: creditors[j].name, to: debtors[i].name, amount: pay });",
+      "checks": ["R6"]
+    },
+    {
+      "id": "M4",
+      "title": "An amount of 0 is accepted",
+      "file": "app/logic.js",
+      "find": "if (!Number.isFinite(amount) || amount <= 0)",
+      "replace": "if (!Number.isFinite(amount) || amount < 0)",
+      "checks": ["R7"]
+    },
+    {
+      "id": "M5",
+      "title": "Nothing is saved, so a reload loses the bill",
+      "file": "app/app.js",
+      "find": "try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }",
+      "replace": "/* save skipped */",
+      "checks": ["R8"]
+    },
+    {
+      "id": "M6",
+      "title": "Total spent ignores the first expense",
+      "file": "app/logic.js",
+      "find": "return expenses.reduce((s, e) => s + e.amount, 0);",
+      "replace": "return expenses.slice(1).reduce((s, e) => s + e.amount, 0);",
+      "checks": ["R3"]
+    },
+    {
+      "id": "M7",
+      "title": "Rounding leftovers are dropped, so shares no longer add up",
+      "file": "app/logic.js",
+      "find": "out[p] = base + (rest > 0 ? 1 : 0);",
+      "replace": "out[p] = base;",
+      "checks": ["R4", "R5"]
+    },
+    {
+      "id": "M8",
+      "title": "Start over keeps the old expenses",
+      "file": "app/app.js",
+      "find": "state = { members: [], expenses: [] };",
+      "replace": "state = { members: [], expenses: state.expenses };",
+      "checks": ["R7"]
+    }
+  ]
+}

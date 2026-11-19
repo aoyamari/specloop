@@ -12,6 +12,8 @@ You write requirements in plain English in `spec.md`. SpecLoop turns each one in
 | **Claude Code** (Stop hook) | Claude can't finish its turn while Kane is red. The failures go straight back into the chat, and Claude keeps fixing (up to 3 rounds). |
 | **Any agent / file watcher** | `npm run loop -- --agent "<cmd>" --watch` re-verifies on every save and pipes the failures into Codex, Gemini CLI, Hermes or anything that takes a prompt on stdin. |
 | **GitHub Actions** | Every push and PR runs the whole spec through Kane in headless Chrome. The PR gets a verdict comment with video evidence, and the run uploads a requirement-by-requirement report plus the fix prompt. |
+| **Mutation lab** | `kane-mutate.yml`: Kane scores the spec against injected regressions; Claude Code closes the gaps with new requirements; Kane proves them; a PR opens. |
+| **Bisect lab** | `kane-bisect.yml`: Kane finds the first bad commit for a requirement; Claude Code fixes it from the culprit diff; Kane re-verifies. |
 | **Auto-fix in CI** | When Kane fails on a PR, `kane-fix.yml` hands SpecLoop's fix prompt to Claude Code (official `claude-code-action`), re-runs Kane on the whole spec, and pushes a `[specloop-fix]` commit only if every requirement is green. Two rounds per run, two auto-fix commits per branch, then it hands back to a human. |
 
 The demo app is **Patungan**, a bill splitter for friends: add members, add expenses, see who owes whom, and settle up in the fewest transfers.
@@ -34,6 +36,19 @@ The demo app is **Patungan**, a bill splitter for friends: add members, add expe
 1. 🔴 Kane CLI fails R2: *"An error saying Andi is already in the group is shown…"* was not true.
 2. 🤖 `kane-fix.yml` hands SpecLoop's fix prompt to Claude Code in GitHub Actions. Claude edits only `app/logic.js`.
 3. 🟢 SpecLoop re-runs Kane on the whole spec in the same job: **8/8**. Only then is the `[specloop-fix]` commit pushed, and the PR gets the report as a comment.
+
+## Who checks the checker? `specloop mutate`
+
+A green suite only proves the spec passed. It does not prove the spec would catch anything. `specloop mutate` injects plausible regressions from `mutants.json` into a copy of `app/` (a case-sensitive duplicate check, a split across the wrong people, rounding leftovers dropped…) and lets Kane CLI run the spec against each one.
+
+- Kane tries the most likely requirements first. A mutant only counts as **survived** after the **whole** spec has passed against it.
+- The result is a **mutation score**, for example `6/8`.
+- Each survivor is a gap in the spec. SpecLoop writes `spec-gap-prompt.md`, and the agent (Claude Code in CI via `kane-mutate.yml`) adds plain-English requirements for it.
+- `specloop mutate --recheck` then proves two things with Kane: every new requirement **passes on the real app**, and it **kills its mutant**. Only then does the bot open a PR with the stronger spec.
+
+## Which commit broke it? `specloop bisect`
+
+`specloop bisect --req R6 --good <sha>` runs `git bisect` with today's Kane CLI test for R6 as the oracle. At every step the app is rebuilt from that commit and Kane runs R6 against it in a real browser, so it takes about log2(n) + 2 Kane runs. The first bad commit's diff and Kane's failure go to the agent as `bisect-fix-prompt.md`. In CI (`kane-bisect.yml`), Claude Code fixes it, Kane re-verifies, and the fix is pushed with a report on the PR.
 
 ## How it works
 
@@ -88,6 +103,8 @@ tests/                  generated Kane CLI _test.md files
 specloop/cli.mjs        serve · gen · verify · loop · hook · report
 specloop/spec.mjs       spec parser, linter, test generator
 specloop/report.mjs     Kane NDJSON → requirement report + fix prompt
+specloop/lab.mjs        mutate (mutation testing of the spec) · bisect (Kane as git bisect oracle)
+mutants.json            plausible regressions used by `specloop mutate`
 .claude/settings.json   Claude Code Stop hook
 ```
 

@@ -1,0 +1,129 @@
+name: Kane bisect
+
+# Which commit broke this requirement? git bisect, with today's Kane CLI test for the
+# requirement as the oracle at every step (about log2(n) + 2 Kane runs).
+# Then Claude Code gets the culprit's diff plus Kane's failure, fixes app/, and the fix is
+# pushed only if Kane says the requirement passes again.
+#
+# Secrets: LT_USERNAME, LT_ACCESS_KEY, CLAUDE_CODE_OAUTH_TOKEN.
+
+on:
+  workflow_dispatch:
+    inputs:
+      req:
+        description: "Requirement(s) that broke, e.g. R6"
+        required: true
+      good:
+        description: "A commit where it still worked (sha, tag or branch)"
+        required: true
+        default: "main"
+      branch:
+        description: "Branch where it is broken now"
+        required: true
+      fix:
+        description: "Let Claude Code fix it from the culprit diff"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: kane-bisect-${{ inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  bisect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LT_USERNAME: ${{ secrets.LT_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
+      REQ: ${{ inputs.req }}
+      BRANCH: ${{ inputs.branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Kane CLI
+        run: npm install -g @testmuai/kane-cli && kane-cli --version
+
+      - name: Bisect with Kane CLI as the oracle
+        id: bisect
+        run: |
+          git fetch -q origin main
+          good="${{ inputs.good }}"
+          git rev-parse -q --verify "$good" >/dev/null || good="origin/$good"
+          node specloop/cli.mjs bisect --req "$REQ" --good "$good"
+
+      - name: Build the fix prompt
+        id: prompt
+        if: inputs.fix
+        run: |
+          test -s .specloop/bisect-fix-prompt.md || exit 1
+          {
+            echo 'text<<SPECLOOP_EOF'
+            cat .specloop/bisect-fix-prompt.md
+            echo 'SPECLOOP_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Claude Code fixes the culprit
+        if: inputs.fix
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: ${{ steps.prompt.outputs.text }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          claude_args: "--allowedTools 'Edit,MultiEdit,Read,Glob,Grep,LS,Bash(npm test)'"
+
+      - name: Kane CLI verifies the requirement again
+        id: verify
+        if: inputs.fix
+        continue-on-error: true
+        run: node specloop/cli.mjs verify --only "$REQ"
+
+      - name: Push the fix only if Kane is green
+        if: inputs.fix && steps.verify.outcome == 'success'
+        run: |
+          if git diff --quiet -- app/; then echo "No app changes"; exit 0; fi
+          git config user.name "specloop-bot"
+          git config user.email "specloop-bot@users.noreply.github.com"
+          git add app/
+          culprit=$(node -e "console.log(require('./.specloop/bisect.json').culprit.slice(0,7))")
+          git commit -m "[specloop-fix] Fix $REQ, broken in $culprit (found by Kane bisect)" -m "SpecLoop bisect found the first bad commit with Kane CLI; Claude Code fixed it from the culprit diff; Kane CLI verified $REQ passes again."
+          git push origin "HEAD:$BRANCH"
+
+      - name: Comment on the PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')
+          [ -n "$pr" ] || exit 0
+          {
+            echo "### 🔎 SpecLoop bisect"
+            cat .specloop/BISECT.md 2>/dev/null || echo "(no report)"
+            echo
+            if [ "${{ steps.verify.outcome }}" = "success" ]; then echo "🤖 Claude Code fixed it from the culprit diff, and Kane CLI verified $REQ passes again. The fix is pushed as a \`[specloop-fix]\` commit."; fi
+            if [ "${{ steps.verify.outcome }}" = "failure" ]; then echo "🤖 Claude Code's fix did not make $REQ pass in Kane CLI. Nothing was pushed."; fi
+            echo
+            echo "[Bisect run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } > comment.md
+          gh pr comment "$pr" --body-file comment.md
+
+      - name: Upload the bisect report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: specloop-bisect-${{ github.run_id }}
+          path: .specloop/
+          include-hidden-files: true
+          if-no-files-found: ignore

@@ -5,3 +5,5 @@
 - `tests/*_test.md` are generated: after changing `spec.md`, run `npm run gen` and commit the result.
 - `npm test` runs the fast unit tests; `npm run verify` runs every requirement through Kane CLI in a real browser.
 - A Stop hook (`.claude/settings.json`) runs Kane when you finish a turn that changed `app/` or `spec.md`. If it reports failures, read `.specloop/fix-prompt.md`, fix the app, and finish again.
+- When given `.specloop/spec-gap-prompt.md`, edit only `spec.md`: add requirements that pass on the current app and would fail on the described bug.
+- When given `.specloop/bisect-fix-prompt.md`, fix `app/` from the culprit diff; keep the commit's harmless intent.
