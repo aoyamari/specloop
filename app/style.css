@@ -78,7 +78,7 @@ button.ghost { background: transparent; color: var(--ink); }
 button:focus-visible, .toggles label:focus-within { outline: 3px solid var(--kunyit); outline-offset: 2px; }
 button:active { transform: translateY(1px); }
 
-.chips { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chips { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .chips li {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 4px 12px 4px 4px;
