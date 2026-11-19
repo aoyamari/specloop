@@ -75,6 +75,18 @@ jobs:
         if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
         run: npm install -g @testmuai/kane-cli && kane-cli --version
 
+      - name: Find the culprit commit with Kane bisect (PRs with 3+ commits)
+        id: bisect
+        if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        continue-on-error: true
+        run: |
+          test -s .specloop/report.json || { echo "no report.json"; exit 1; }
+          failing=$(node -e "const r=require('./.specloop/report.json'); console.log(r.requirements.filter(x=>x.status==='failed').map(x=>x.id).join(','))")
+          n=$(git rev-list --count --first-parent origin/main..HEAD)
+          echo "failing: $failing, commits on the PR: $n"
+          if [ -z "$failing" ] || [ "$n" -lt 3 ]; then echo "skip bisect"; exit 1; fi
+          node specloop/cli.mjs bisect --req "$failing" --good origin/main --trust-good --trust-bad
+
       - name: Build the agent prompt
         if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
         id: prompt
@@ -82,6 +94,11 @@ jobs:
           test -s .specloop/fix-prompt.md || { echo "::error::No SpecLoop fix prompt in the failed run's artifacts"; exit 1; }
           {
             echo 'text<<SPECLOOP_EOF'
+            if [ "${{ steps.bisect.outcome }}" = "success" ] && [ -s .specloop/bisect-fix-prompt.md ]; then
+              cat .specloop/bisect-fix-prompt.md
+              echo
+              echo "Full Kane report for this PR:"
+            fi
             cat .specloop/fix-prompt.md
             echo
             echo 'Rules: edit only files under app/. Do not edit spec.md or tests/. Do not commit or push; SpecLoop will run Kane CLI and push your fix if every requirement passes. Run npm test before you finish.'
@@ -163,6 +180,7 @@ jobs:
               echo "Handing back to a human. Nothing was pushed."
             fi
             echo
+            if [ "${{ steps.bisect.outcome }}" = "success" ]; then cat .specloop/BISECT.md; echo; fi
             cat .specloop/REPORT.md 2>/dev/null || echo "(no report)"
             echo
             echo "[Auto-fix run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"

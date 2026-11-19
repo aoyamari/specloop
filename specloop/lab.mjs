@@ -280,7 +280,8 @@ export async function bisect(c) {
   }
 
   c.log(`🔎 bisecting ${reqIds.join(", ")} over ${commits.length} commit(s): about ${Math.ceil(Math.log2(commits.length + 1)) + 2} Kane runs`);
-  if ((await probe(bad, "confirm bad")) !== "bad") { c.log(`${reqIds.join(", ")} passes at ${bad.slice(0, 7)}; nothing to bisect`); return finishBisect(c, { reqIds, good, bad, commits, probes, culprit: null }); }
+  if (opt["trust-bad"]) c.log("trusting that the bad commit fails (Kane already said so)");
+  else if ((await probe(bad, "confirm bad")) !== "bad") { c.log(`${reqIds.join(", ")} passes at ${bad.slice(0, 7)}; nothing to bisect`); return finishBisect(c, { reqIds, good, bad, commits, probes, culprit: null }); }
   if (!opt["trust-good"] && (await probe(good, "confirm good")) !== "good") { c.log(`${reqIds.join(", ")} already fails at the good commit ${good.slice(0, 7)}; pick an older one`); return finishBisect(c, { reqIds, good, bad, commits, probes, culprit: null }); }
 
   let lo = -1;                 // index of the last known good (-1 = the good commit)

@@ -282,6 +282,10 @@ function report() {
   fs.mkdirSync(OUT, { recursive: true });
   fs.writeFileSync(path.join(OUT, "REPORT.md"), md);
   fs.writeFileSync(path.join(OUT, "fix-prompt.md"), fixPrompt(summary));
+  fs.writeFileSync(path.join(OUT, "report.json"), JSON.stringify({
+    at: new Date().toISOString(), green: summary.green, passed: summary.passed, total: summary.total,
+    requirements: summary.rows.map((r) => ({ id: r.id, title: r.title, status: r.status, failure: r.res?.message || null })),
+  }, null, 2));
   if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
   console.log(md);
   if (opt.strict) process.exitCode = summary.green ? 0 : 1;
