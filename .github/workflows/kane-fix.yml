@@ -79,6 +79,7 @@ jobs:
         if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
         id: prompt
         run: |
+          test -s .specloop/fix-prompt.md || { echo "::error::No SpecLoop fix prompt in the failed run's artifacts"; exit 1; }
           {
             echo 'text<<SPECLOOP_EOF'
             cat .specloop/fix-prompt.md

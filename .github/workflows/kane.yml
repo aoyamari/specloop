@@ -74,4 +74,5 @@ jobs:
         with:
           name: specloop-report-${{ github.run_id }}
           path: .specloop/
+          include-hidden-files: true
           if-no-files-found: ignore
