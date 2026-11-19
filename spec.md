@@ -53,4 +53,4 @@ written in plain English. The last bullet of each requirement must verify someth
 ## R10: Start over clears everything
 - Add the members "Andi" and "Budi", then add an expense "Coffee", Amount 40000, Paid by Andi, split among both.
 - Click Start over.
-- Verify the Members list is empty, the Expenses list says No expenses yet, and Total spent shows Rp 0.
+- Verify the Members list says No members yet, the Expenses list says No expenses yet, and Total spent shows Rp 0.

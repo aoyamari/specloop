@@ -20,4 +20,4 @@ Add the members "Andi" and "Budi", then add an expense "Coffee", Amount 40000, P
 Click Start over.
 
 ## Step 3
-Verify the Members list is empty, the Expenses list says No expenses yet, and Total spent shows Rp 0.
+Verify the Members list says No members yet, the Expenses list says No expenses yet, and Total spent shows Rp 0.
