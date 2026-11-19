@@ -17,7 +17,7 @@ Open http://localhost:4173/?bill=r7, click "Start over", and verify the Members 
 Add the members "Andi" and "Budi".
 
 ## Step 2
-Try to add an expense with Description "Snacks" and Amount 0 by clicking Add expense. The app is expected to refuse it.
+Fill in Description "Snacks" and Amount 0, then click the Add expense button once.
 
 ## Step 3
 Verify an error saying the amount must be greater than 0 is shown, and the Expenses list still says No expenses yet.

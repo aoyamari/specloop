@@ -37,7 +37,7 @@ written in plain English. The last bullet of each requirement must verify someth
 
 ## R7: Refuse an expense with an invalid amount
 - Add the members "Andi" and "Budi".
-- Try to add an expense with Description "Snacks" and Amount 0 by clicking Add expense. The app is expected to refuse it.
+- Fill in Description "Snacks" and Amount 0, then click the Add expense button once.
 - Verify an error saying the amount must be greater than 0 is shown, and the Expenses list still says No expenses yet.
 
 ## R8: Data survives a page reload
