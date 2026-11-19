@@ -26,10 +26,33 @@ function li(text, cls) {
   return el;
 }
 
+function span(cls, text) {
+  const el = document.createElement("span");
+  el.className = cls;
+  el.textContent = text;
+  return el;
+}
+
+// Stable colour per person, so Andi is always the same colour.
+function hue(name) {
+  let h = 0;
+  for (const c of name.toLowerCase()) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+}
+
+let freshExpense = false;
+
 function render() {
   const { members, expenses } = state;
 
-  $("member-list").replaceChildren(...members.map((m) => li(m)));
+  $("member-list").replaceChildren(...members.map((m) => {
+    const el = document.createElement("li");
+    const av = span("avatar", m.slice(0, 1).toUpperCase());
+    av.style.setProperty("--h", hue(m));
+    av.setAttribute("aria-hidden", "true");
+    el.append(av, m);
+    return el;
+  }));
   if (!members.length) $("member-list").append(li("No members yet", "empty"));
 
   const payer = $("expense-payer");
@@ -43,27 +66,37 @@ function render() {
   );
   $("split-options").replaceChildren(...members.map((m) => {
     const label = document.createElement("label");
-    label.className = "check";
     const box = document.createElement("input");
     box.type = "checkbox";
     box.value = m;
     box.checked = !unchecked.has(m);
-    label.append(box, ` ${m}`);
+    label.append(box, m);
     return label;
   }));
+  if (!members.length) $("split-options").append(span("meta", "Add members first"));
 
-  $("expense-list").replaceChildren(...expenses.map((e) => li(
-    `${e.description}: ${formatIDR(e.amount)}, paid by ${e.payer}, split among ${e.splitAmong.join(", ")}`,
-  )));
+  $("expense-list").replaceChildren(...expenses.map((e, i) => {
+    const el = document.createElement("li");
+    const line = span("line", "");
+    line.append(span("what", e.description), span("dots", ""), span("amt", formatIDR(e.amount)));
+    el.append(line, span("meta", ` paid by ${e.payer}, split among ${e.splitAmong.join(", ")}`));
+    el.setAttribute("aria-label", `${e.description}: ${formatIDR(e.amount)}, paid by ${e.payer}, split among ${e.splitAmong.join(", ")}`);
+    if (freshExpense && i === expenses.length - 1) el.className = "fresh";
+    return el;
+  }));
+  freshExpense = false;
   if (!expenses.length) $("expense-list").append(li("No expenses yet", "empty"));
   $("total").textContent = formatIDR(total(expenses));
 
   const bal = balances(members, expenses);
   $("balance-list").replaceChildren(...members.map((m) => {
     const v = bal[m];
-    if (v > 0) return li(`${m} gets back ${formatIDR(v)}`, "pos");
-    if (v < 0) return li(`${m} owes ${formatIDR(-v)}`, "neg");
-    return li(`${m} is settled`, "zero");
+    const [cls, state] = v > 0 ? ["pos", `gets back ${formatIDR(v)}`]
+      : v < 0 ? ["neg", `owes ${formatIDR(-v)}`] : ["zero", "is settled"];
+    const el = document.createElement("li");
+    el.className = cls;
+    el.append(span("who", m), " ", span("state", state));
+    return el;
   }));
   if (!members.length) $("balance-list").append(li("Add members to see balances", "empty"));
 
@@ -101,6 +134,7 @@ $("expense-form").addEventListener("submit", (ev) => {
   $("expense-desc").value = "";
   $("expense-amount").value = "";
   $("split-options").replaceChildren(); // next expense defaults to everyone
+  freshExpense = true;
   save();
   render();
 });
