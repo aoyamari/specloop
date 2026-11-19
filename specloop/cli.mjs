@@ -214,7 +214,7 @@ async function loopOnce(agentCmd, max) {
     const r = await verify();
     stats.kaneRuns += 1;
     if (r.green) { log(`🟢 all ${r.summary.total} requirements verified`); return done(true); }
-    if (r.code === 2 && !r.summary?.rows.some((x) => x.res)) return done(false);
+    if (r.code === 2 && !r.summary?.rows.some((x) => x.res)) { stats.kaneSetupError = true; return done(false); }
     if (!agentCmd || round > max) break;
     await runAgent(agentCmd, r.prompt);
     stats.agentRuns += 1;

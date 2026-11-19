@@ -165,6 +165,12 @@ export async function arena(c) {
     const seconds = (Date.now() - t0) / 1000;
     const loopInfo = (() => { try { return JSON.parse(fs.readFileSync(path.join(dir, ".specloop/loop.json"), "utf8")); } catch { return {}; } })();
     const report = (() => { try { return JSON.parse(fs.readFileSync(path.join(dir, ".specloop/report.json"), "utf8")); } catch { return {}; } })();
+    if (loopInfo.kaneSetupError) {
+      const err = path.join(dir, ".specloop/stderr.log");
+      const tail = fs.existsSync(err) ? fs.readFileSync(err, "utf8").trim().split("\n").slice(-8).join("\n") : "(no stderr.log)";
+      c.log(`⚠️  Kane CLI could not start in the ${a.name} copy, so no agent was judged. Fix Kane first (try \`npm run verify\` in the repo). Kane said:\n${tail}`);
+      return 2;
+    }
     const specTouched = hashTree(dir, "spec.md") + hashTree(dir, "tests") !== specBefore;
     const diff = appDiff(plantedApp, path.join(dir, "app"));
     diff.exactRevert = appDiff(origApp, path.join(dir, "app")).files.length === 0;
