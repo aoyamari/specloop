@@ -17,8 +17,8 @@ export function parseAmount(input) {
 export function validateMember(name, members) {
   const clean = String(name ?? "").trim();
   if (!clean) return { ok: false, error: "Name can't be empty" };
-  const existing = members.find((m) => m.toLowerCase() === clean.toLowerCase());
-  if (existing) return { ok: false, error: `${existing} is already in the group` };
+  // Simplified: a plain includes() is enough here.
+  if (members.includes(clean)) return { ok: false, error: `${clean} is already in the group` };
   return { ok: true, name: clean };
 }
 
