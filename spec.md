@@ -37,10 +37,20 @@ written in plain English. The last bullet of each requirement must verify someth
 
 ## R7: Refuse an expense with an invalid amount
 - Add the members "Andi" and "Budi".
-- Try to add an expense with Description "Snacks" and Amount 0 by clicking Add expense. The app is expected to refuse it.
+- Fill in Description "Snacks" and Amount 0, then click the Add expense button once.
 - Verify an error saying the amount must be greater than 0 is shown, and the Expenses list still says No expenses yet.
 
 ## R8: Data survives a page reload
 - Add the members "Andi" and "Budi", then add an expense "Coffee", Amount 40000, Paid by Andi, split among both.
 - Reload the page.
 - Verify the Members list still shows Andi and Budi, the Expenses list still shows Coffee for Rp 40.000, and Total spent shows Rp 40.000.
+
+## R9: Rounding leftovers are not lost
+- Add the members "Andi", "Budi" and "Citra".
+- Add an expense with Description "Villa", Amount 100000, Paid by Andi, split among all three.
+- Verify the Balances list says Andi gets back Rp 66.666, Budi owes Rp 33.333 and Citra owes Rp 33.333.
+
+## R10: Start over clears everything
+- Add the members "Andi" and "Budi", then add an expense "Coffee", Amount 40000, Paid by Andi, split among both.
+- Click Start over.
+- Verify the Members list says No members yet, the Expenses list says No expenses yet, and Total spent shows Rp 0.
