@@ -18,7 +18,7 @@ You write requirements in plain English in `spec.md`. SpecLoop turns each one in
 
 The demo app is **Patungan**, a bill splitter for friends: add members, add expenses, see who owes whom, and settle up in the fewest transfers.
 
-**Live app:** https://aoyamari.github.io/specloop/
+**Live app:** https://aoyamari.github.io/specloop/ · **Spec status page:** https://aoyamari.github.io/specloop/status/ (rebuilt after every Kane verify, mutation and bisect run)
 
 ## Proof: Kane caught a real bug
 
@@ -35,20 +35,24 @@ The demo app is **Patungan**, a bill splitter for friends: add members, add expe
 
 1. 🔴 Kane CLI fails R2: *"An error saying Andi is already in the group is shown…"* was not true.
 2. 🤖 `kane-fix.yml` hands SpecLoop's fix prompt to Claude Code in GitHub Actions. Claude edits only `app/logic.js`.
-3. 🟢 SpecLoop re-runs Kane on the whole spec in the same job: **8/8**. Only then is the `[specloop-fix]` commit pushed, and the PR gets the report as a comment.
+3. 🟢 SpecLoop re-runs Kane on the whole spec in the same job: **8/8** (the spec had 8 requirements then; it has 10 now). Only then is the `[specloop-fix]` commit pushed, and the PR gets the report as a comment.
 
 ## Who checks the checker? `specloop mutate`
 
 A green suite only proves the spec passed. It does not prove the spec would catch anything. `specloop mutate` injects plausible regressions from `mutants.json` into a copy of `app/` (a case-sensitive duplicate check, a split across the wrong people, rounding leftovers dropped…) and lets Kane CLI run the spec against each one.
 
 - Kane tries the most likely requirements first. A mutant only counts as **survived** after the **whole** spec has passed against it.
-- The result is a **mutation score**, for example `6/8`.
+- The result is a **mutation score**.
 - Each survivor is a gap in the spec. SpecLoop writes `spec-gap-prompt.md`, and the agent (Claude Code in CI via `kane-mutate.yml`) adds plain-English requirements for it.
 - `specloop mutate --recheck` then proves two things with Kane: every new requirement **passes on the real app**, and it **kills its mutant**. Only then does the bot open a PR with the stronger spec.
 
+**Proof:** Kane scored the original 8-requirement spec **6/8** ([run](https://github.com/aoyamari/specloop/actions/runs/44489509625)). Two mutants survived: rounding leftovers dropped (M7) and "Start over" keeping old expenses (M8). In the [strengthening run](https://github.com/aoyamari/specloop/actions/runs/44496536608), Claude Code wrote R9 "Rounding leftovers are not lost" and R10 "Start over clears everything". Kane showed both pass on the real app, R9 kills M7 and R10 kills M8, and the bot opened [PR #5](https://github.com/aoyamari/specloop/pull/5). **Mutation score: 8/8.**
+
 ## Which commit broke it? `specloop bisect`
 
-`specloop bisect --req R6 --good <sha>` runs `git bisect` with today's Kane CLI test for R6 as the oracle. At every step the app is rebuilt from that commit and Kane runs R6 against it in a real browser, so it takes about log2(n) + 2 Kane runs. The first bad commit's diff and Kane's failure go to the agent as `bisect-fix-prompt.md`. In CI (`kane-bisect.yml`), Claude Code fixes it, Kane re-verifies, and the fix is pushed with a report on the PR.
+`specloop bisect --req R6 --good <sha>` runs `git bisect` with today's Kane CLI test for R6 as the oracle. At every step the app is rebuilt from that commit and Kane runs R6 against it in a real browser, so it takes about log2(n) + 2 Kane runs. The first bad commit's diff and Kane's failure go to the agent as `bisect-fix-prompt.md`. In CI (`kane-bisect.yml`), Claude Code fixes it, Kane re-verifies, and the fix is pushed with a report on the PR. `kane-fix.yml` also runs it on its own when a failing PR has 3+ commits, so Claude gets the culprit diff instead of the whole branch.
+
+**Proof:** [PR #4](https://github.com/aoyamari/specloop/pull/4) is six small "polish" commits. One of them, `7d521e1` "Settle-up: share one sort comparator", also swaps who pays whom. Kane failed R6, and bisect named `7d521e1` as the first bad commit in **3 Kane runs**, with the diff, in the PR comment. Claude Code got that diff, changed one line back (and kept the commit's shared comparator), Kane re-ran the whole spec (**8/8**), and the bot pushed the `[specloop-fix]` commit. No human touched the code.
 
 ## How it works
 
