@@ -20,6 +20,29 @@ The demo app is **Patungan**, a bill splitter for friends: add members, add expe
 
 **Live app:** https://aoyamari.github.io/specloop/ · **Spec status page:** https://aoyamari.github.io/specloop/status/ (rebuilt after every Kane verify, mutation and bisect run)
 
+## Evidence: every claim, with the run that proves it
+
+Every row is a real GitHub Actions run of Kane CLI in headless Chrome, or a real pull request. Nothing below is simulated.
+
+| Claim | Proof |
+|---|---|
+| Kane catches a real regression on a PR | [PR #1](https://github.com/aoyamari/specloop/pull/1): Kane failed R5 ([run](https://github.com/aoyamari/specloop/actions/runs/44369501206)), the fix went in, then **8/8** ([run](https://github.com/aoyamari/specloop/actions/runs/44375025038)) |
+| A UI redesign goes through the same gate | [PR #2](https://github.com/aoyamari/specloop/pull/2): **8/8** before merge ([run](https://github.com/aoyamari/specloop/actions/runs/44439915930)) |
+| Claude Code can't finish its turn while Kane is red | Stop hook, recorded live on a VPS (shown in the demo video): Kane fails R5, Claude fixes `app/logic.js`, Kane passes, only then does the turn end |
+| Auto-fix in CI with no human in the loop | [PR #3](https://github.com/aoyamari/specloop/pull/3): Kane failed R2 ([run](https://github.com/aoyamari/specloop/actions/runs/44458459485)); `kane-fix.yml` had Claude Code fix it, Kane re-ran **8/8** in the same job, and the bot pushed ([run](https://github.com/aoyamari/specloop/actions/runs/44460668860)) |
+| Kane as the `git bisect` oracle | [PR #4](https://github.com/aoyamari/specloop/pull/4): culprit `7d521e1` found in **3 Kane runs** inside the auto-fix ([run](https://github.com/aoyamari/specloop/actions/runs/44504407751)); replayed on the same history in 5 runs, with the good and bad ends re-checked ([run](https://github.com/aoyamari/specloop/actions/runs/44513137460)) |
+| The agent fixes from the culprit diff, not the whole branch | [PR #4](https://github.com/aoyamari/specloop/pull/4): commit `9f4e8d3` by the bot, one line changed back, the commit's shared comparator kept, Kane **8/8** before the push |
+| The spec catches injected bugs | Mutation score **6/8** on the original spec ([run](https://github.com/aoyamari/specloop/actions/runs/44489509625)); M7 and M8 survived the whole spec |
+| Mutation testing strengthens the spec itself | Claude Code wrote R9 and R10; Kane showed both pass on the real app and kill M7 and M8 (**8/8**); the bot opened [PR #5](https://github.com/aoyamari/specloop/pull/5) ([run](https://github.com/aoyamari/specloop/actions/runs/44496536608)) |
+| `main` is green on the stronger spec | **10/10** on Kane after PR #5 ([run](https://github.com/aoyamari/specloop/actions/runs/44509075216)); live on the [status page](https://aoyamari.github.io/specloop/status/) |
+
+### Known limits, stated plainly
+
+- Kane was strict about wording. R2, R7 and R10 each needed a clearer sentence ("the app is expected to refuse it", a plain click step, the empty state the app actually shows). The meaning stayed the same and no test was weakened; every change is in the PR history.
+- R8 (data survives a reload) failed in early runs because parallel Kane workers shared one `localStorage`. Each test now opens its own bill (`?bill=r8`). R8 also failed when the auto-fix called `kane-cli` directly with the runner's Chrome after a bisect; the auto-fix now verifies with the official Kane action, as the PR check does, and R8 passes. The exact cause of that second failure was not pinned down.
+- The `--agent` hook works with any command that reads a prompt on stdin, but only Claude Code has been run end to end here.
+- The Stop-hook proof is a screen recording, not a CI run.
+
 ## Proof: Kane caught a real bug
 
 [PR #1](https://github.com/aoyamari/specloop/pull/1) is a harmless-looking refactor of `balances()`. In the refactor, every expense is split across the whole group instead of only the people ticked under "Split among".
