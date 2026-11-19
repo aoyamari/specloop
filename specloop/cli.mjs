@@ -16,6 +16,7 @@ import { spawn } from "node:child_process";
 import { generate, parseSpec } from "./spec.mjs";
 import { parseStream, parseResultsTable, summarize, toMarkdown, fixPrompt } from "./report.mjs";
 import { mutate, bisect } from "./lab.mjs";
+import { buildStatus } from "./status.mjs";
 
 import { fileURLToPath } from "node:url";
 
@@ -316,6 +317,11 @@ const main = {
   hook: async () => { process.exitCode = await hook(); },
   report: async () => report(),
   mutate: async () => { process.exitCode = await mutate(lab()); },
+  status: async () => {
+    const runs = { verify: process.env.RUN_VERIFY, mutation: process.env.RUN_MUTATION, bisect: process.env.RUN_BISECT };
+    const r = buildStatus({ root: ROOT, dataDir: path.resolve(String(opt.data || ".specloop-data")), outDir: path.resolve(String(opt.out || "_site/status")), runs });
+    log(`status page: ${r.passed}/${r.reqs} verified, mutation score ${r.score}`);
+  },
   bisect: async () => { process.exitCode = await bisect(lab()); },
   help: async () => console.log(HELP),
 }[cmd];

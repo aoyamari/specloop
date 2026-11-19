@@ -1,15 +1,20 @@
 name: Deploy app
 
-# Live URL for judges: the app in app/ on GitHub Pages.
+# Live URL for judges: the app in app/ on GitHub Pages, plus /status/, a spec status page
+# built from the latest Kane verify, mutation and bisect reports.
 on:
   push:
     branches: [main]
+  workflow_run:
+    workflows: ["Kane verify", "Kane mutate", "Kane bisect", "Kane auto-fix"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 concurrency:
   group: pages
@@ -23,9 +28,34 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Fetch the latest SpecLoop reports
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          fetch() { # workflow file, artifact prefix, dir, branch filter
+            id=$(gh run list --workflow "$1" ${4:+--branch "$4"} --limit 20 --json databaseId,conclusion,status -q '[.[]|select(.status=="completed" and (.conclusion=="success" or .conclusion=="failure"))][0].databaseId')
+            [ -n "$id" ] || return 0
+            gh run download "$id" --pattern "$2*" --dir "data/$3" 2>/dev/null || true
+            echo "$3=$id" >> runs.env
+          }
+          : > runs.env
+          fetch kane.yml specloop-report- verify main
+          fetch kane-mutate.yml specloop-mutation- mutation
+          fetch kane-bisect.yml specloop-bisect- bisect
+          cat runs.env
+      - name: Build the site
+        run: |
+          set -a; . ./runs.env; set +a
+          mkdir -p _site && cp -r app/. _site/
+          RUN_VERIFY="$verify" RUN_MUTATION="$mutation" RUN_BISECT="$bisect" node specloop/cli.mjs status --data data --out _site/status
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: app
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
