@@ -3,67 +3,86 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Patungan · split bills with friends</title>
+  <title>Patungan · split the bill, not the friendship</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
+  <header class="masthead">
     <h1>Patungan</h1>
-    <p class="tagline">Split bills with friends. Settle up in as few transfers as possible.</p>
+    <p class="tagline">Split the bill, not the friendship. Add who came, add what was paid, and get the shortest way to settle up.</p>
   </header>
 
-  <main>
-    <section class="card" aria-labelledby="members-title">
-      <h2 id="members-title">Members</h2>
-      <form id="member-form" autocomplete="off">
-        <label for="member-name">Member name</label>
-        <div class="row">
-          <input id="member-name" name="member-name" placeholder="e.g. Andi">
-          <button type="submit">Add member</button>
-        </div>
-        <p class="error" id="member-error" role="alert"></p>
-      </form>
-      <ul id="member-list" aria-label="Members list"></ul>
-    </section>
+  <main class="layout">
+    <div class="inputs">
+      <section class="panel" aria-labelledby="members-title">
+        <h2 id="members-title">Members</h2>
+        <form id="member-form" autocomplete="off">
+          <label for="member-name">Member name</label>
+          <div class="row">
+            <input id="member-name" name="member-name" placeholder="e.g. Andi">
+            <button type="submit">Add member</button>
+          </div>
+          <p class="error" id="member-error" role="alert"></p>
+        </form>
+        <ul id="member-list" class="chips" aria-label="Members list"></ul>
+      </section>
 
-    <section class="card" aria-labelledby="expense-title">
-      <h2 id="expense-title">Add expense</h2>
-      <form id="expense-form" autocomplete="off">
-        <label for="expense-desc">Description</label>
-        <input id="expense-desc" placeholder="e.g. Dinner">
-        <label for="expense-amount">Amount (Rp)</label>
-        <input id="expense-amount" inputmode="numeric" placeholder="e.g. 90000">
-        <label for="expense-payer">Paid by</label>
-        <select id="expense-payer"></select>
-        <fieldset>
-          <legend>Split among</legend>
-          <div id="split-options"></div>
-        </fieldset>
-        <button type="submit">Add expense</button>
-        <p class="error" id="expense-error" role="alert"></p>
-      </form>
-    </section>
+      <section class="panel" aria-labelledby="expense-title">
+        <h2 id="expense-title">Add expense</h2>
+        <form id="expense-form" autocomplete="off">
+          <div class="grid">
+            <div class="field wide">
+              <label for="expense-desc">Description</label>
+              <input id="expense-desc" placeholder="e.g. Dinner">
+            </div>
+            <div class="field">
+              <label for="expense-amount">Amount (Rp)</label>
+              <input id="expense-amount" inputmode="numeric" placeholder="e.g. 90000">
+            </div>
+            <div class="field">
+              <label for="expense-payer">Paid by</label>
+              <select id="expense-payer"></select>
+            </div>
+          </div>
+          <fieldset>
+            <legend>Split among</legend>
+            <div id="split-options" class="toggles"></div>
+          </fieldset>
+          <button type="submit" class="primary">Add expense</button>
+          <p class="error" id="expense-error" role="alert"></p>
+        </form>
+      </section>
 
-    <section class="card" aria-labelledby="expenses-title">
-      <h2 id="expenses-title">Expenses</h2>
-      <ul id="expense-list" aria-label="Expenses list"></ul>
-      <p class="total">Total spent: <strong id="total">Rp 0</strong></p>
-    </section>
+      <button id="reset" class="ghost" type="button">Start over</button>
+    </div>
 
-    <section class="card" aria-labelledby="balances-title">
-      <h2 id="balances-title">Balances</h2>
-      <ul id="balance-list" aria-label="Balances list"></ul>
-    </section>
+    <article class="receipt" aria-label="Receipt">
+      <div class="receipt-head">
+        <p class="receipt-title">Patungan</p>
+        <p class="total">Total spent <strong id="total">Rp 0</strong></p>
+      </div>
 
-    <section class="card" aria-labelledby="settle-title">
-      <h2 id="settle-title">Settle up</h2>
-      <ul id="settle-list" aria-label="Settle up list"></ul>
-    </section>
+      <section aria-labelledby="expenses-title">
+        <h2 id="expenses-title">Expenses</h2>
+        <ul id="expense-list" class="lines" aria-label="Expenses list"></ul>
+      </section>
 
-    <button id="reset" class="secondary" type="button">Start over</button>
+      <section aria-labelledby="balances-title">
+        <h2 id="balances-title">Balances</h2>
+        <ul id="balance-list" class="lines" aria-label="Balances list"></ul>
+      </section>
+
+      <section class="settle" aria-labelledby="settle-title">
+        <h2 id="settle-title">Settle up</h2>
+        <ul id="settle-list" aria-label="Settle up list"></ul>
+      </section>
+    </article>
   </main>
 
-  <footer>Verified with Kane CLI via <a href="https://github.com/aoyamari/specloop">SpecLoop</a></footer>
+  <footer>Every change to this app is checked against <a href="https://github.com/aoyamari/specloop/blob/main/spec.md">its spec</a> by Kane CLI in a real browser, via <a href="https://github.com/aoyamari/specloop">SpecLoop</a>.</footer>
   <script type="module" src="app.js"></script>
 </body>
 </html>
