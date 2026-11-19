@@ -91,6 +91,9 @@ jobs:
         if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
         id: prompt
         run: |
+          if node -e "process.exit(require('./.specloop/report.json').kane_errors ? 0 : 1)" 2>/dev/null; then
+            echo "::error::Kane CLI could not judge some requirements (credits, quota or auth). Not asking Claude Code to fix the app."; exit 1
+          fi
           test -s .specloop/fix-prompt.md || { echo "::error::No SpecLoop fix prompt in the failed run's artifacts"; exit 1; }
           {
             echo 'text<<SPECLOOP_EOF'

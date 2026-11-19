@@ -13,8 +13,11 @@ export function parseStream(text) {
     if (e.type !== "testrun_member_end" && e.type !== "testrun_authored_member_end") continue;
     const id = reqIdFromPath(e.path);
     if (!id) continue;
+    const msg = e.failure?.message || "";
+    // Kane could not judge the app at all (no credits, quota, auth): that is not a failing requirement.
+    const kaneError = e.status !== "passed" && /credits? exhausted|insufficient credits|quota exceeded|not authenticated/i.test(msg);
     results.set(id, {
-      status: e.status,
+      status: kaneError ? "kane-error" : e.status,
       duration: e.duration_s,
       message: e.failure?.message || "",
       stepIndex: e.failure?.step_index,
@@ -40,7 +43,7 @@ export function parseResultsTable(text) {
   return { results, overall: "", errors: [] };
 }
 
-const ICON = { passed: "✅", failed: "❌", broken: "💥", interrupted: "⏹️" };
+const ICON = { passed: "✅", failed: "❌", broken: "💥", interrupted: "⏹️", "kane-error": "⚠️" };
 
 export function summarize(reqs, results) {
   const rows = reqs.map((r) => {
@@ -48,7 +51,8 @@ export function summarize(reqs, results) {
     return { ...r, status: res ? res.status : "not run", res };
   });
   const passed = rows.filter((r) => r.status === "passed").length;
-  return { rows, passed, total: rows.length, green: passed === rows.length && rows.length > 0 };
+  const kaneErrors = rows.filter((r) => r.status === "kane-error").length;
+  return { rows, passed, kaneErrors, total: rows.length, green: passed === rows.length && rows.length > 0 };
 }
 
 export function toMarkdown(summary, { title = "SpecLoop: spec coverage", evidenceUrl = "" } = {}) {
@@ -64,13 +68,15 @@ export function toMarkdown(summary, { title = "SpecLoop: spec coverage", evidenc
     const why = r.res?.message ? ` — ${r.res.message.replace(/\|/g, "\\|").slice(0, 160)}` : "";
     lines.push(`| ${r.id} | ${r.title} | ${ICON[r.status] || "⚪"} ${r.status}${why} |`);
   }
+  if (summary.kaneErrors) lines.push("", `⚠️ Kane CLI could not judge ${summary.kaneErrors} requirement(s) (credits, quota or auth). They are not app failures and were not sent to the agent.`);
   if (evidenceUrl) lines.push("", `Evidence (video + step trace): ${evidenceUrl}`);
   return lines.join("\n") + "\n";
 }
 
 // The prompt handed to a coding agent when requirements fail.
 export function fixPrompt(summary) {
-  const failing = summary.rows.filter((r) => r.status !== "passed");
+  // Only requirements Kane actually judged as failing go to the agent; Kane's own errors never do.
+  const failing = summary.rows.filter((r) => r.status !== "passed" && r.status !== "kane-error" && r.status !== "not run");
   if (!failing.length) return "";
   const parts = [
     "Kane CLI ran the spec against the app in a real browser and these requirements FAILED.",

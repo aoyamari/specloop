@@ -174,6 +174,7 @@ async function verify() {
       at: new Date().toISOString(), kane_exit: code, overall: parsed.overall, green: summary.green,
       passed: summary.passed, total: summary.total,
       requirements: summary.rows.map((r) => ({ id: r.id, title: r.title, status: r.status, failure: r.res?.message || null })),
+      kane_errors: summary.kaneErrors,
     }, null, 2));
     fs.writeFileSync(path.join(OUT, "fix-prompt.md"), prompt);
     console.log(md);
@@ -215,6 +216,7 @@ async function loopOnce(agentCmd, max) {
     stats.kaneRuns += 1;
     if (r.green) { log(`🟢 all ${r.summary.total} requirements verified`); return done(true); }
     if (r.code === 2 && !r.summary?.rows.some((x) => x.res)) { stats.kaneSetupError = true; return done(false); }
+    if (r.summary?.kaneErrors) { stats.kaneSetupError = true; log(`⚠️ Kane CLI could not judge ${r.summary.kaneErrors} requirement(s) (credits, quota or auth). Not asking the agent to fix anything.`); return done(false); }
     if (!agentCmd || round > max) break;
     await runAgent(agentCmd, r.prompt);
     stats.agentRuns += 1;
@@ -270,6 +272,10 @@ async function hook() {
   if (r.green) { fs.writeFileSync(stateFile, JSON.stringify({ attempts: 0 })); return 0; }
   if (r.code === 2 && !r.summary?.rows.some((x) => x.res)) {
     process.stderr.write("SpecLoop: Kane CLI could not run (auth/setup), not blocking. See .specloop/stderr.log\n");
+    return 0;
+  }
+  if (r.summary?.kaneErrors) {
+    process.stderr.write(`SpecLoop: Kane CLI could not judge ${r.summary.kaneErrors} requirement(s) (credits, quota or auth), not blocking. See .specloop/REPORT.md\n`);
     return 0;
   }
   st.attempts += 1;

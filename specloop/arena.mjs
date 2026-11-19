@@ -168,7 +168,7 @@ export async function arena(c) {
     if (loopInfo.kaneSetupError) {
       const err = path.join(dir, ".specloop/stderr.log");
       const tail = fs.existsSync(err) ? fs.readFileSync(err, "utf8").trim().split("\n").slice(-8).join("\n") : "(no stderr.log)";
-      c.log(`⚠️  Kane CLI could not start in the ${a.name} copy, so no agent was judged. Fix Kane first (try \`npm run verify\` in the repo). Kane said:\n${tail}`);
+      c.log(`⚠️  Kane CLI could not judge the ${a.name} copy (auth, credits or quota), so no agent was scored. Fix Kane first (try \`npm run verify\` in the repo). Kane said:\n${tail}`);
       return 2;
     }
     const specTouched = hashTree(dir, "spec.md") + hashTree(dir, "tests") !== specBefore;

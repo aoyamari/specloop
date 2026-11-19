@@ -35,3 +35,13 @@ test("hermes preset reads the prompt from a file, so no shell quoting is involve
   const [h] = parseAgents("hermes");
   assert.equal(h.cmd, "hermes chat -Q --query-file {prompt_file}");
 });
+
+import { parseStream, summarize, fixPrompt } from "../specloop/report.mjs";
+test("Kane running out of credits is a Kane error, never a fix prompt for the agent", () => {
+  const ev = (f, status, message) => JSON.stringify({ type: "testrun_member_end", path: `tests/${f}`, status, failure: message ? { message } : undefined });
+  const text = [ev("r1-a_test.md", "passed"), ev("r2-b_test.md", "failed", 'Credits exhausted: {"error":"insufficient credits"}')].join("\n");
+  const s = summarize([{ id: "R1", title: "a", steps: [] }, { id: "R2", title: "b", steps: [] }], parseStream(text).results);
+  assert.equal(s.kaneErrors, 1);
+  assert.equal(s.green, false);
+  assert.equal(fixPrompt(s), "");
+});
