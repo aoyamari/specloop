@@ -40,7 +40,7 @@ Every row is a real GitHub Actions run of Kane CLI in headless Chrome, or a real
 
 - Kane was strict about wording. R2, R7 and R10 each needed a clearer sentence ("the app is expected to refuse it", a plain click step, the empty state the app actually shows). The meaning stayed the same and no test was weakened; every change is in the PR history.
 - R8 (data survives a reload) failed in early runs because parallel Kane workers shared one `localStorage`. Each test now opens its own bill (`?bill=r8`). R8 also failed when the auto-fix called `kane-cli` directly with the runner's Chrome after a bisect; the auto-fix now verifies with the official Kane action, as the PR check does, and R8 passes. The exact cause of that second failure was not pinned down.
-- The `--agent` hook works with any command that reads a prompt on stdin, but only Claude Code has been run end to end here.
+- The `--agent` hook works with any command that reads a prompt on stdin, but only Claude Code has been run end to end here. `specloop arena` (several agents on one bug) is built and dry-run with stubs, but not yet run with real Gemini CLI or Codex: both hit free-tier quota limits on the demo server.
 - The Stop-hook proof is a screen recording, not a CI run.
 
 ## Proof: Kane caught a real bug
@@ -82,6 +82,8 @@ A green suite only proves the spec passed. It does not prove the spec would catc
 `specloop arena --mutant M2 --agents claude,gemini,codex` plants one bug from `mutants.json` in a separate copy of the repo for each agent, then runs SpecLoop's normal loop there: Kane verifies the whole spec, the failures go to the agent as a fix prompt, and Kane verifies again (up to `--max` rounds). Kane is the only judge. An agent that edits `spec.md` or `tests/` is disqualified even when Kane is green. The result is `.specloop/ARENA.md`: Kane verdict, fix rounds, Kane runs, time, and the lines each agent changed.
 
 Built-in commands: `claude -p`, `gemini --yolo -p`, `codex exec --full-auto`. Any other agent: `--agents "mine=my-agent {prompt_file}"`.
+
+**Status:** unit-tested, and dry-run end to end with a stub Kane and three stub agents (a correct fix goes green, an agent that deletes R5 from the spec is disqualified, an agent that does nothing stays red). It has **not** been run with real Gemini CLI and Codex yet: on the demo server both hit free-tier quota limits, so there is no real scoreboard to show.
 
 ## How it works
 
