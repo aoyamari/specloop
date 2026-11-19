@@ -105,6 +105,14 @@ jobs:
             echo 'SPECLOOP_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: Serve the app (live from app/, so each round sees Claude's edits)
+        if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        run: |
+          node specloop/cli.mjs gen
+          nohup node specloop/cli.mjs serve > serve.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:4173 >/dev/null && exit 0; sleep 1; done
+          cat serve.log; exit 1
+
       - name: "Round 1: Claude Code fixes the app"
         if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
         uses: anthropics/claude-code-action@v1
@@ -116,14 +124,33 @@ jobs:
 
       - name: "Round 1: Kane CLI verifies the whole spec"
         if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
+        id: kane1
+        continue-on-error: true
+        uses: LambdaTest/kane-cli/integrations/github-action/kane-cli-browser-run@main
+        with:
+          test-files: "tests/**/*_test.md"
+          parallel: "2"
+          comment-on-pr: "false"
+          artifact-name: kane-evidence-fix-round1
+          logs-artifact-name: kane-logs-fix-round1
+          username: ${{ secrets.LT_USERNAME }}
+          access-key: ${{ secrets.LT_ACCESS_KEY }}
+
+      - name: "Round 1: SpecLoop report"
+        if: steps.pr.outputs.number != '' && steps.pr.outputs.fixes < 2
         id: verify1
         continue-on-error: true
-        run: node specloop/cli.mjs verify
+        run: |
+          node specloop/cli.mjs report --strict \
+            --stream kane-out/stream.ndjson \
+            --results "${{ steps.kane1.outputs.results-file }}" \
+            --evidence "${{ steps.kane1.outputs.evidence-url }}"
 
       - name: "Round 2: prompt from the new Kane failures"
         if: steps.verify1.outcome == 'failure'
         id: prompt2
         run: |
+          rm -rf kane-out
           {
             echo 'text<<SPECLOOP_EOF'
             cat .specloop/fix-prompt.md
@@ -143,9 +170,27 @@ jobs:
 
       - name: "Round 2: Kane CLI verifies the whole spec"
         if: steps.verify1.outcome == 'failure'
+        id: kane2
+        continue-on-error: true
+        uses: LambdaTest/kane-cli/integrations/github-action/kane-cli-browser-run@main
+        with:
+          test-files: "tests/**/*_test.md"
+          parallel: "2"
+          comment-on-pr: "false"
+          artifact-name: kane-evidence-fix-round2
+          logs-artifact-name: kane-logs-fix-round2
+          username: ${{ secrets.LT_USERNAME }}
+          access-key: ${{ secrets.LT_ACCESS_KEY }}
+
+      - name: "Round 2: SpecLoop report"
+        if: steps.verify1.outcome == 'failure'
         id: verify2
         continue-on-error: true
-        run: node specloop/cli.mjs verify
+        run: |
+          node specloop/cli.mjs report --strict \
+            --stream kane-out/stream.ndjson \
+            --results "${{ steps.kane2.outputs.results-file }}" \
+            --evidence "${{ steps.kane2.outputs.evidence-url }}"
 
       - name: Say so if the auto-fix could not start
         if: failure() && steps.pr.outputs.number != '' && steps.verify1.outcome != 'success' && steps.verify1.outcome != 'failure'
